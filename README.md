@@ -2,7 +2,8 @@
 # Grid Congestion in Germany: The Cost of Redispatch and the Case for Investment
 
 An explanatory data analysis of Germany's grid redispatch costs, built for the M512 Data Visualisation and Communication module at Gisma University of Applied Sciences.
-
+## Final Submission
+The full HTML analysis is available here: [Redispatch_Analysis_Redesigned.html](https://github.com/malliksmrity/redispatch-analysis/blob/main/Redispatch_Analysis_Redesigned.html)
 ## What this project does
 
 Redispatch is how German grid operators (TSOs) manage congestion when electricity generated in one region can't be carried to where it's needed. This notebook analyses whether redispatch cost is rising, what's driving it, and where an investment committee should target capital — transmission expansion or battery storage.
