@@ -1,0 +1,30 @@
+-- DAX measures for the redispatch report. Table names: fact_monthly, dim_month, fact_operator_monthly.
+-- NOT TESTED in Power BI Desktop: written without access to the application. Paste one by one and fix any name that differs.
+
+Total Cost (m EUR) = SUM ( fact_monthly[cost_million_eur] )
+
+Total Volume (GWh) = SUM ( fact_monthly[volume_gwh] )
+
+-- million EUR to EUR: x 1,000,000. GWh to MWh: x 1,000.
+Cost per MWh (EUR) = DIVIDE ( [Total Cost (m EUR)] * 1000000, [Total Volume (GWh)] * 1000 )
+
+Cost 12M Average (m EUR) =
+AVERAGEX (
+    DATESINPERIOD ( dim_month[month], MAX ( dim_month[month] ), -12, MONTH ),
+    CALCULATE ( SUM ( fact_monthly[cost_million_eur] ) )
+)
+
+Peak Month Cost (m EUR) = MAXX ( ALL ( dim_month ), CALCULATE ( SUM ( fact_monthly[cost_million_eur] ) ) )
+
+Latest Month Cost (m EUR) =
+CALCULATE ( SUM ( fact_monthly[cost_million_eur] ), LASTDATE ( ALL ( dim_month[month] ) ) )
+
+Decline From Peak % = 1 - DIVIDE ( [Latest Month Cost (m EUR)], [Peak Month Cost (m EUR)] )
+
+Operator Energy (GWh) = DIVIDE ( SUM ( fact_operator_monthly[energy_mwh] ), 1000 )
+
+Operator Share % =
+DIVIDE ( [Operator Energy (GWh)], CALCULATE ( [Operator Energy (GWh)], ALL ( fact_operator_monthly[operator] ) ) )
+
+Reductions Share % =
+DIVIDE ( SUM ( fact_monthly[reductions_gwh] ), SUM ( fact_monthly[reductions_gwh] ) + SUM ( fact_monthly[increases_gwh] ) )

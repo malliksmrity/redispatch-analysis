@@ -68,11 +68,16 @@ Open `docs/index.html` in a browser. `reports/original_d3_report.html` is the fi
 - Operator totals use `GESAMTE_ARBEIT_MWH` (German decimal comma) grouped by `ANWEISENDER_UENB`.
 - Wind = onshore plus offshore hourly generation summed per month. The first, partial month is dropped. Bootstrap: 2,000 resamples of the 13 months, seed 42.
 
+## Power BI package (untested in Power BI)
+
+`powerbi/` holds a small star schema (`python src/export_powerbi.py`), DAX measures, a theme and a build guide. I could not run Power BI Desktop, so the measures are untested. The operator table covers only January 2024 to April 2026 (one measure on 31 December 2023 is included).
+
 ## Repository layout
 
 ```
 data/raw/    SMARD and Netztransparenz CSV files
-src/         build_results.py, fetch_smard_generation.py
+src/         build_results.py, export_powerbi.py, fetch_smard_generation.py
+powerbi/     data/ (star schema CSVs), measures.dax, theme.json, BUILD_GUIDE.md
 reports/     results.json, original_d3_report.html, chart-lib.js
 docs/        static project page
 ```
