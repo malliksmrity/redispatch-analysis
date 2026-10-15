@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Grid Congestion in Germany — Redispatch Cost &amp; Investment Case</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6; /* blue   - redispatch volume / conventional / reductions */
+    --series-1-soft:  #b7d3f6; /* light step for bars/fills */
+    --series-2:       #eb6834; /* orange - wind generation / increases */
+    --series-2-soft:  #f7c8ac;
+    --series-3:       #1baf7a; /* aqua   - renewable volume */
+    --series-3-soft:  #b7ecd8;
+    --good:           #006300;
+    --seq-1: #86b6ef; --seq-2: #5598e7; --seq-3: #2a78d6; --seq-4: #1c5cab; --seq-5: #104281;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-1-soft:  #184f95;
+      --series-2:       #d95926;
+      --series-2-soft:  #8a3d16;
+      --series-3:       #199e70;
+      --series-3-soft:  #0f5f43;
+      --good:           #0ca30c;
+      --seq-1: #9ec5f4; --seq-2: #6da7ec; --seq-3: #3987e5; --seq-4: #1c5cab; --seq-5: #0d366b;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page); color: var(--text-primary); }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 0 0 64px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+
+  header.hero { padding: 48px 20px 32px; }
+  header.hero .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--series-1); margin: 0 0 10px;
+  }
+  header.hero h1 { font-size: clamp(24px, 4vw, 34px); line-height: 1.2; margin: 0 0 14px; font-weight: 700; }
+  header.hero p.lede { font-size: 16px; color: var(--text-secondary); max-width: 760px; line-height: 1.55; margin: 0 0 6px; }
+  header.hero p.meta { font-size: 13px; color: var(--text-muted); margin-top: 18px; }
+
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin: 8px 0 8px;
+  }
+  @media (max-width: 760px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+  .kpi {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 16px 14px;
+  }
+  .kpi .label { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 8px; }
+  .kpi .value { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; }
+  .kpi .delta { font-size: 12.5px; margin-top: 4px; font-weight: 600; }
+  .kpi .delta.good { color: var(--good); }
+  .kpi .delta.muted { color: var(--text-muted); font-weight: 500; }
+
+  section.chart {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px 24px 20px; margin: 28px 0;
+  }
+  section.chart .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 6px; }
+  section.chart h2 { font-size: 19px; margin: 0 0 6px; line-height: 1.35; }
+  section.chart p.sub { font-size: 14px; color: var(--text-secondary); margin: 0 0 18px; max-width: 700px; }
+  .viz { width: 100%; overflow-x: auto; }
+  svg.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .axis text { fill: var(--text-muted); font-size: 11px; font-family: inherit; }
+  .axis-title { fill: var(--text-secondary); font-size: 11.5px; font-weight: 600; }
+  .gridline { stroke: var(--grid); stroke-width: 1px; shape-rendering: crispEdges; }
+  .baseline { stroke: var(--baseline); stroke-width: 1px; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 10px 0 4px; font-size: 13px; color: var(--text-secondary); }
+  .legend .item { display: inline-flex; align-items: center; gap: 7px; }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+  .legend .swatch.line { width: 16px; height: 3px; border-radius: 2px; }
+
+  .interp { font-size: 14.5px; line-height: 1.6; color: var(--text-primary); margin-top: 16px; }
+  .interp .note { color: var(--text-secondary); font-size: 13.5px; margin-top: 8px; }
+
+  details.datatoggle { margin-top: 14px; }
+  details.datatoggle summary {
+    cursor: pointer; font-size: 12.5px; color: var(--series-1); font-weight: 600; list-style: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  details.datatoggle summary::-webkit-details-marker { display: none; }
+  details.datatoggle summary::before { content: "▸"; display: inline-block; transition: transform .15s; }
+  details.datatoggle[open] summary::before { transform: rotate(90deg); }
+  .datawrap { overflow-x: auto; margin-top: 10px; }
+  table.data { border-collapse: collapse; font-size: 12.5px; width: 100%; min-width: 480px; }
+  table.data th, table.data td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  table.data th:first-child, table.data td:first-child { text-align: left; font-variant-numeric: normal; }
+  table.data th { color: var(--text-muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .02em; }
+
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 20;
+    background: var(--text-primary); color: var(--surface-1);
+    font-size: 12.5px; line-height: 1.45; padding: 8px 10px; border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.18); opacity: 0; transition: opacity .1s;
+    max-width: 220px;
+  }
+  .tooltip strong { display: block; margin-bottom: 2px; }
+  .tooltip .row { display: flex; justify-content: space-between; gap: 10px; }
+
+  footer.rec {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 26px 26px 22px; margin-top: 32px;
+  }
+  footer.rec h2 { font-size: 18px; margin: 0 0 10px; }
+  footer.rec p { font-size: 14.5px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 10px; }
+  footer.rec ul { font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; margin: 10px 0 0; padding-left: 20px; }
+  .sources { font-size: 12px; color: var(--text-muted); margin-top: 28px; line-height: 1.7; }
+  .sources a { color: var(--text-muted); }
+
+  .hitline { fill: none; stroke: transparent; stroke-width: 24px; }
+  .dot-ring { stroke: var(--surface-1); stroke-width: 2px; }
+</style>
+</head>
+<body>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Redispatch Analysis · SMARD &amp; Netztransparenz, Jul 2022 – Apr 2026</p>
+    <h1>Grid congestion in Germany: the cost of redispatch, and the case for investment</h1>
+    <p class="lede"><strong>Business question:</strong> Is Germany's redispatch cost rising, what is driving it, and should the committee fund transmission investment on that basis?</p>
+    <p class="lede">Short answer: cost per event has fallen sharply since the 2023 peak, but the underlying congestion volume hasn't — so the case for investment rests on frequency, not on a runaway bill.</p>
+    <p class="meta">46 months of SMARD cost &amp; volume data · 51,443 individual redispatch measures from Netztransparenz · hourly generation data for the wind comparison.</p>
+  </header>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Chart 1: cost trend -->
+  <section class="chart" id="chart1">
+    <p class="eyebrow">Chart 1 · Cost trend</p>
+    <h2>Monthly redispatch cost has fallen 61% since its January 2023 peak</h2>
+    <p class="sub">Monthly spend (bars) against its trailing 12-month average (line) — the average is what separates a real trend from one noisy month.</p>
+    <div class="legend">
+      <span class="item"><span class="swatch" style="background:var(--series-1-soft)"></span>Monthly cost</span>
+      <span class="item"><span class="swatch line" style="background:var(--series-1)"></span>12-month average</span>
+    </div>
+    <div class="viz"><svg class="chart-svg" id="viz1" viewBox="0 0 900 340"></svg></div>
+    <p class="interp">Cost peaked at €349m in January 2023 and sits at €136m in April 2026 — a real, sustained decline the 12-month line confirms is not just a quiet month. It ticks up slightly at the very end; too soon to call that a reversal. This 61% figure is measured against the single most expensive month on record, so it describes the scale of recovery from an unusual peak, not a smooth year-over-year decline.</p>
+    <details class="datatoggle"><summary>View monthly data</summary>
+      <div class="datawrap"><table class="data" id="table1"></table></div>
+    </details>
+  </section>
+
+  <!-- Chart 2: wind vs volume -->
+  <section class="chart" id="chart2">
+    <p class="eyebrow">Chart 2 · Wind vs. redispatch volume</p>
+    <h2>Wind generation and redispatch volume move together — until they don't</h2>
+    <p class="sub">Both series indexed to their starting month (Mar 2025 = 100) so they share one axis instead of two independent scales, which can be stretched to imply a correlation that isn't there.</p>
+    <div class="legend">
+      <span class="item"><span class="swatch line" style="background:var(--series-1)"></span>Redispatch volume</span>
+      <span class="item"><span class="swatch line" style="background:var(--series-2)"></span>Wind generation</span>
+    </div>
+    <div class="viz"><svg class="chart-svg" id="viz2" viewBox="0 0 900 340"></svg></div>
+    <p class="interp">The two series track closely from March through November 2025. Then they split: wind stays elevated from December through February while redispatch volume drops sharply in February before rebounding. Wind explains part of the swing, but clearly not all of it — an investment case built solely on wind growth would be overreaching.</p>
+    <p class="interp note">Only 14 months of hourly generation data overlap with the monthly redispatch series, so the December–February divergence should be read as one observed episode, not yet a confirmed seasonal pattern.</p>
+    <details class="datatoggle"><summary>View monthly data</summary>
+      <div class="datawrap"><table class="data" id="table2"></table></div>
+    </details>
+  </section>
+
+  <!-- Chart 3: unit cost by year -->
+  <section class="chart" id="chart3">
+    <p class="eyebrow">Chart 3 · Unit cost by year</p>
+    <h2>Every euro of redispatch buys more: unit cost has fallen every year since 2022</h2>
+    <p class="sub">Cost per megawatt-hour of redispatched energy, by year. Each dot is one month; the box spans the middle 50% of months, the line inside it is the median.</p>
+    <div class="viz"><svg class="chart-svg" id="viz3" viewBox="0 0 900 340"></svg></div>
+    <p class="interp">The median cost per MWh drops every year — from about €129 in 2022 to roughly €68 in 2025 — and the boxes narrow too, so it isn't just cheaper, it's steadier. That backs Chart 1 from a different angle: it's not that redispatch happens less, each instance genuinely costs less to resolve than it used to.</p>
+    <p class="interp note">2022 (6 months) and 2026 (4 months) are partial years with far fewer observations than 2023–2025, so their boxes reflect a noisier sample. Even allowing for that, no year has cost more per MWh than the one before it.</p>
+    <details class="datatoggle"><summary>View monthly data</summary>
+      <div class="datawrap"><table class="data" id="table3"></table></div>
+    </details>
+  </section>
+
+  <!-- Chart 4: TSO comparison -->
+  <section class="chart" id="chart4">
+    <p class="eyebrow">Chart 4 · Grid operator comparison</p>
+    <h2>TenneT DE carries nearly half of all redispatch energy nationally</h2>
+    <p class="sub">Total energy redispatched by the instructing transmission system operator, summed across all 51,443 recorded measures.</p>
+    <div class="viz"><svg class="chart-svg" id="viz4" viewBox="0 0 900 260"></svg></div>
+    <p class="interp">TenneT DE handles about 27,100 GWh — roughly double Amprion and almost four times TransnetBW, the smallest of the four. If transmission investment is the fix that gets funded, TenneT's stretch of the grid is the obvious place to start; this ranking held consistently across the full period, not just in one unusual month.</p>
+    <details class="datatoggle"><summary>View data</summary>
+      <div class="datawrap"><table class="data" id="table4"></table></div>
+    </details>
+  </section>
+
+  <!-- Chart 5: conventional vs renewable volume -->
+  <section class="chart" id="chart5">
+    <p class="eyebrow">Chart 5 · Volume composition</p>
+    <h2>Total redispatch volume shows no downward trend — only the cost of it does</h2>
+    <p class="sub">Monthly redispatched energy, split between conventional and renewable plants. The total swings between roughly 700 and 3,500 GWh with no sustained decline.</p>
+    <div class="legend">
+      <span class="item"><span class="swatch" style="background:var(--series-1)"></span>Conventional</span>
+      <span class="item"><span class="swatch" style="background:var(--series-3)"></span>Renewable</span>
+    </div>
+    <div class="viz"><svg class="chart-svg" id="viz5" viewBox="0 0 900 340"></svg></div>
+    <p class="interp">Congestion is just as frequent as it was in 2022 — only cheaper to resolve each time. This is arguably the single most important finding here: taken alone, the falling cost in Chart 1 would suggest congestion is easing, but the volume driving it hasn't moved.</p>
+    <details class="datatoggle"><summary>View monthly data</summary>
+      <div class="datawrap"><table class="data" id="table5"></table></div>
+    </details>
+  </section>
+
+  <!-- Chart 6: reduction/increase balance -->
+  <section class="chart" id="chart6">
+    <p class="eyebrow">Chart 6 · Reduction vs. increase balance</p>
+    <h2>Reductions are growing while increases shrink — a quietly shifting burden</h2>
+    <p class="sub">Average monthly volume, comparing the earliest full period (2022–23) against the most recent (2025–26).</p>
+    <div class="viz"><svg class="chart-svg" id="viz6" viewBox="0 0 900 300"></svg></div>
+    <p class="interp">Reductions — which typically fall on renewable plants told to curtail output — rose from about 1,215 to 1,300 GWh a month. Increases, mostly conventional plants ramping up, fell more sharply, from about 810 to 635 GWh a month. A growing share of reductions means renewable generators are quietly absorbing more of this burden, even as the headline cost numbers look better.</p>
+    <details class="datatoggle"><summary>View data</summary>
+      <div class="datawrap"><table class="data" id="table6"></table></div>
+    </details>
+  </section>
+
+  <footer class="rec">
+    <h2>Recommendation</h2>
+    <p>Proceed with transmission investment, prioritised in TenneT DE's corridor. The spending case should rest on the fact that congestion volume hasn't fallen in four years (Chart 5), not on the cost trend — which is a story about efficiency gains, not reduced need (Charts 1 &amp; 3). Because the recent cost uptick is only a few months old and wind explains only part of the volume swings (Chart 2), the committee should treat this as a directional case for grid capacity, and revisit sizing once another 6–12 months of data confirm whether the late-period tick in cost holds.</p>
+    <ul>
+      <li>Cost per event is down 61% from peak and unit cost has fallen every year since 2022 — redispatch is being resolved more efficiently.</li>
+      <li>Underlying volume has not trended down at all, swinging 700–3,500 GWh/month throughout — the root cause (congestion) is unchanged.</li>
+      <li>TenneT DE's network carries ~47% of all redispatch energy nationally — the highest-leverage location for investment.</li>
+      <li>Renewable generators are absorbing a growing share of curtailment (reductions), a distributional effect worth flagging alongside the cost case.</li>
+    </ul>
+  </footer>
+
+  <p class="sources">Sources: SMARD (Bundesnetzagentur) monthly redispatch cost &amp; volume, Jul 2022–Apr 2026 · Netztransparenz.de individual redispatch measures (Redispatch_Daten), 51,443 records · SMARD hourly generation by source for the wind comparison. Figures are this author's recomputation from the same raw files used in the original notebook; minor differences from any earlier draft reflect methodology (e.g. unit cost expressed here in €/MWh, not €m/GWh).</p>
+</div>
+
+<script>
+const DATA = {
+  monthly: [{"m": "Jul 2022", "d": "2022-07-01", "y": 2022, "cost": 211.02, "roll12": null, "vol": 1469.83, "volCon": 1005.26, "volRen": 464.57, "volRed": 1020.97, "volInc": 448.86, "eurPerMwh": 143.57}, {"m": "Aug 2022", "d": "2022-08-01", "y": 2022, "cost": 41.09, "roll12": null, "vol": 715.9, "volCon": 604.69, "volRen": 110.4, "volRed": 521.96, "volInc": 193.13, "eurPerMwh": 57.4}, {"m": "Sep 2022", "d": "2022-09-01", "y": 2022, "cost": 211.55, "roll12": null, "vol": 1009.26, "volCon": 584.67, "volRen": 424.59, "volRed": 653.32, "volInc": 355.94, "eurPerMwh": 209.61}, {"m": "Oct 2022", "d": "2022-10-01", "y": 2022, "cost": 207.06, "roll12": null, "vol": 1596.97, "volCon": 1010.34, "volRen": 586.63, "volRed": 955.83, "volInc": 641.14, "eurPerMwh": 129.66}, {"m": "Nov 2022", "d": "2022-11-01", "y": 2022, "cost": 341.6, "roll12": null, "vol": 2682.9, "volCon": 1824.57, "volRen": 857.52, "volRed": 1524.14, "volInc": 1157.96, "eurPerMwh": 127.32}, {"m": "Dec 2022", "d": "2022-12-01", "y": 2022, "cost": 166.33, "roll12": null, "vol": 1933.13, "volCon": 1359.15, "volRen": 573.98, "volRed": 1172.18, "volInc": 760.95, "eurPerMwh": 86.04}, {"m": "Jan 2023", "d": "2023-01-01", "y": 2023, "cost": 348.8, "roll12": null, "vol": 3344.9, "volCon": 1932.93, "volRen": 1411.16, "volRed": 2059.73, "volInc": 1284.36, "eurPerMwh": 104.28}, {"m": "Feb 2023", "d": "2023-02-01", "y": 2023, "cost": 308.71, "roll12": null, "vol": 3165.9, "volCon": 1880.56, "volRen": 1285.34, "volRed": 1893.39, "volInc": 1272.51, "eurPerMwh": 97.51}, {"m": "Mar 2023", "d": "2023-03-01", "y": 2023, "cost": 270.07, "roll12": null, "vol": 2868.7, "volCon": 1690.11, "volRen": 1178.59, "volRed": 1740.99, "volInc": 1127.7, "eurPerMwh": 94.14}, {"m": "Apr 2023", "d": "2023-04-01", "y": 2023, "cost": 216.19, "roll12": null, "vol": 2325.72, "volCon": 1547.15, "volRen": 778.57, "volRed": 1284.44, "volInc": 1041.28, "eurPerMwh": 92.96}, {"m": "May 2023", "d": "2023-05-01", "y": 2023, "cost": 148.93, "roll12": null, "vol": 2051.44, "volCon": 1419.07, "volRen": 632.37, "volRed": 1160.08, "volInc": 891.37, "eurPerMwh": 72.6}, {"m": "Jun 2023", "d": "2023-06-01", "y": 2023, "cost": 88.69, "roll12": 213.34, "vol": 1045.47, "volCon": 618.74, "volRen": 426.73, "volRed": 622.0, "volInc": 423.46, "eurPerMwh": 84.83}, {"m": "Jul 2023", "d": "2023-07-01", "y": 2023, "cost": 222.88, "roll12": 214.33, "vol": 2327.65, "volCon": 1532.69, "volRen": 794.96, "volRed": 1326.94, "volInc": 1000.71, "eurPerMwh": 95.75}, {"m": "Aug 2023", "d": "2023-08-01", "y": 2023, "cost": 124.35, "roll12": 221.26, "vol": 1478.34, "volCon": 855.41, "volRen": 622.93, "volRed": 918.47, "volInc": 559.87, "eurPerMwh": 84.11}, {"m": "Sep 2023", "d": "2023-09-01", "y": 2023, "cost": 135.99, "roll12": 214.97, "vol": 1509.46, "volCon": 969.55, "volRen": 539.91, "volRed": 843.46, "volInc": 666.0, "eurPerMwh": 90.09}, {"m": "Oct 2023", "d": "2023-10-01", "y": 2023, "cost": 270.06, "roll12": 220.22, "vol": 2846.5, "volCon": 1643.19, "volRen": 1202.85, "volRed": 1706.47, "volInc": 1139.58, "eurPerMwh": 94.87}, {"m": "Nov 2023", "d": "2023-11-01", "y": 2023, "cost": 178.13, "roll12": 206.59, "vol": 2175.77, "volCon": 1398.28, "volRen": 777.48, "volRed": 1279.52, "volInc": 896.25, "eurPerMwh": 81.87}, {"m": "Dec 2023", "d": "2023-12-01", "y": 2023, "cost": 149.27, "roll12": 205.17, "vol": 1929.69, "volCon": 1100.88, "volRen": 828.81, "volRed": 1211.95, "volInc": 717.73, "eurPerMwh": 77.35}, {"m": "Jan 2024", "d": "2024-01-01", "y": 2024, "cost": 200.87, "roll12": 192.84, "vol": 2992.57, "volCon": 1860.41, "volRen": 1132.15, "volRed": 1861.24, "volInc": 1131.32, "eurPerMwh": 67.12}, {"m": "Feb 2024", "d": "2024-02-01", "y": 2024, "cost": 141.3, "roll12": 178.89, "vol": 1883.11, "volCon": 952.17, "volRen": 930.94, "volRed": 1229.82, "volInc": 653.29, "eurPerMwh": 75.04}, {"m": "Mar 2024", "d": "2024-03-01", "y": 2024, "cost": 76.87, "roll12": 162.79, "vol": 1201.4, "volCon": 835.21, "volRen": 365.83, "volRed": 722.64, "volInc": 478.4, "eurPerMwh": 63.98}, {"m": "Apr 2024", "d": "2024-04-01", "y": 2024, "cost": 98.3, "roll12": 152.97, "vol": 1262.26, "volCon": 673.53, "volRen": 588.73, "volRed": 857.66, "volInc": 404.6, "eurPerMwh": 77.88}, {"m": "May 2024", "d": "2024-05-01", "y": 2024, "cost": 179.75, "roll12": 155.54, "vol": 2295.95, "volCon": 1208.98, "volRen": 1086.98, "volRed": 1474.56, "volInc": 821.4, "eurPerMwh": 78.29}, {"m": "Jun 2024", "d": "2024-06-01", "y": 2024, "cost": 102.28, "roll12": 156.67, "vol": 1167.84, "volCon": 743.27, "volRen": 424.58, "volRed": 726.89, "volInc": 440.95, "eurPerMwh": 87.58}, {"m": "Jul 2024", "d": "2024-07-01", "y": 2024, "cost": 61.7, "roll12": 143.24, "vol": 876.53, "volCon": 446.42, "volRen": 430.11, "volRed": 617.49, "volInc": 259.04, "eurPerMwh": 70.39}, {"m": "Aug 2024", "d": "2024-08-01", "y": 2024, "cost": 93.25, "roll12": 140.65, "vol": 1097.22, "volCon": 623.96, "volRen": 473.25, "volRed": 735.82, "volInc": 361.39, "eurPerMwh": 84.99}, {"m": "Sep 2024", "d": "2024-09-01", "y": 2024, "cost": 177.18, "roll12": 144.08, "vol": 2091.56, "volCon": 1125.32, "volRen": 966.24, "volRed": 1363.06, "volInc": 728.51, "eurPerMwh": 84.71}, {"m": "Oct 2024", "d": "2024-10-01", "y": 2024, "cost": 146.75, "roll12": 133.8, "vol": 2032.73, "volCon": 1290.11, "volRen": 742.63, "volRed": 1217.8, "volInc": 814.93, "eurPerMwh": 72.19}, {"m": "Nov 2024", "d": "2024-11-01", "y": 2024, "cost": 189.37, "roll12": 134.74, "vol": 2397.16, "volCon": 1567.73, "volRen": 829.43, "volRed": 1442.6, "volInc": 954.55, "eurPerMwh": 79.0}, {"m": "Dec 2024", "d": "2024-12-01", "y": 2024, "cost": 319.84, "roll12": 148.95, "vol": 3493.69, "volCon": 2075.66, "volRen": 1418.04, "volRed": 2219.81, "volInc": 1273.88, "eurPerMwh": 91.55}, {"m": "Jan 2025", "d": "2025-01-01", "y": 2025, "cost": 245.14, "roll12": 152.64, "vol": 3133.37, "volCon": 2117.23, "volRen": 1016.15, "volRed": 1926.51, "volInc": 1206.86, "eurPerMwh": 78.24}, {"m": "Feb 2025", "d": "2025-02-01", "y": 2025, "cost": 134.49, "roll12": 152.08, "vol": 2186.49, "volCon": 1669.42, "volRen": 517.07, "volRed": 1323.34, "volInc": 863.14, "eurPerMwh": 61.51}, {"m": "Mar 2025", "d": "2025-03-01", "y": 2025, "cost": 106.46, "roll12": 154.54, "vol": 1453.4, "volCon": 832.95, "volRen": 620.09, "volRed": 932.56, "volInc": 520.48, "eurPerMwh": 73.25}, {"m": "Apr 2025", "d": "2025-04-01", "y": 2025, "cost": 78.47, "roll12": 152.89, "vol": 1244.65, "volCon": 637.62, "volRen": 607.03, "volRed": 915.44, "volInc": 329.21, "eurPerMwh": 63.05}, {"m": "May 2025", "d": "2025-05-01", "y": 2025, "cost": 101.22, "roll12": 146.35, "vol": 1290.37, "volCon": 572.28, "volRen": 718.08, "volRed": 938.12, "volInc": 352.25, "eurPerMwh": 78.44}, {"m": "Jun 2025", "d": "2025-06-01", "y": 2025, "cost": 158.53, "roll12": 151.03, "vol": 2067.6, "volCon": 1066.3, "volRen": 1000.76, "volRed": 1442.19, "volInc": 624.87, "eurPerMwh": 76.67}, {"m": "Jul 2025", "d": "2025-07-01", "y": 2025, "cost": 95.1, "roll12": 153.82, "vol": 1436.52, "volCon": 748.38, "volRen": 688.15, "volRed": 1053.43, "volInc": 383.09, "eurPerMwh": 66.2}, {"m": "Aug 2025", "d": "2025-08-01", "y": 2025, "cost": 77.62, "roll12": 152.51, "vol": 1099.8, "volCon": 319.15, "volRen": 779.94, "volRed": 921.26, "volInc": 177.83, "eurPerMwh": 70.58}, {"m": "Sep 2025", "d": "2025-09-01", "y": 2025, "cost": 158.87, "roll12": 150.99, "vol": 2239.49, "volCon": 1282.84, "volRen": 956.65, "volRed": 1617.09, "volInc": 622.4, "eurPerMwh": 70.94}, {"m": "Oct 2025", "d": "2025-10-01", "y": 2025, "cost": 163.69, "roll12": 152.4, "vol": 2499.13, "volCon": 1247.02, "volRen": 1252.12, "volRed": 1761.54, "volInc": 737.59, "eurPerMwh": 65.5}, {"m": "Nov 2025", "d": "2025-11-01", "y": 2025, "cost": 145.2, "roll12": 148.72, "vol": 2470.61, "volCon": 1764.13, "volRen": 706.48, "volRed": 1458.37, "volInc": 1012.24, "eurPerMwh": 58.77}, {"m": "Dec 2025", "d": "2025-12-01", "y": 2025, "cost": 140.36, "roll12": 133.76, "vol": 2273.1, "volCon": 1644.22, "volRen": 628.88, "volRed": 1368.44, "volInc": 904.66, "eurPerMwh": 61.75}, {"m": "Jan 2026", "d": "2026-01-01", "y": 2026, "cost": 151.5, "roll12": 125.96, "vol": 2993.93, "volCon": 1995.02, "volRen": 998.91, "volRed": 1966.45, "volInc": 1027.47, "eurPerMwh": 50.6}, {"m": "Feb 2026", "d": "2026-02-01", "y": 2026, "cost": 63.88, "roll12": 120.08, "vol": 1235.27, "volCon": 780.48, "volRen": 454.78, "volRed": 855.65, "volInc": 379.62, "eurPerMwh": 51.71}, {"m": "Mar 2026", "d": "2026-03-01", "y": 2026, "cost": 124.07, "roll12": 121.54, "vol": 1760.7, "volCon": 962.33, "volRen": 797.75, "volRed": 1221.04, "volInc": 539.03, "eurPerMwh": 70.47}, {"m": "Apr 2026", "d": "2026-04-01", "y": 2026, "cost": 136.48, "roll12": 126.38, "vol": 1581.66, "volCon": 865.54, "volRen": 716.12, "volRed": 1108.77, "volInc": 472.89, "eurPerMwh": 86.29}],
+  windVol: [{"m": "Mar 2025", "vol": 1453.4, "wind": 13196.1}, {"m": "Apr 2025", "vol": 1244.65, "wind": 9609.8}, {"m": "May 2025", "vol": 1290.37, "wind": 13078.0}, {"m": "Jun 2025", "vol": 2067.6, "wind": 14628.8}, {"m": "Jul 2025", "vol": 1436.52, "wind": 10378.2}, {"m": "Aug 2025", "vol": 1099.8, "wind": 9640.9}, {"m": "Sep 2025", "vol": 2239.49, "wind": 16830.3}, {"m": "Oct 2025", "vol": 2499.13, "wind": 22314.2}, {"m": "Nov 2025", "vol": 2470.61, "wind": 17593.5}, {"m": "Dec 2025", "vol": 2273.1, "wind": 21387.1}, {"m": "Jan 2026", "vol": 2993.93, "wind": 22505.7}, {"m": "Feb 2026", "vol": 1235.27, "wind": 22091.3}, {"m": "Mar 2026", "vol": 1760.7, "wind": 15339.9}, {"m": "Apr 2026", "vol": 1581.66, "wind": 13508.5}],
+  tso: [{"tso": "TenneT DE", "gwh": 27091.0}, {"tso": "Amprion", "gwh": 14661.0}, {"tso": "50Hertz", "gwh": 7921.0}, {"tso": "TransnetBW", "gwh": 7413.0}],
+  boxByYear: {"2022": {"min": 57.4, "q1": 96.4, "median": 128.5, "q3": 140.1, "max": 209.6, "n": 6, "vals": [57.4, 86.0, 127.3, 129.7, 143.6, 209.6]}, "2023": {"min": 72.6, "q1": 83.5, "median": 91.5, "q3": 95.1, "max": 104.3, "n": 12, "vals": [72.6, 77.3, 81.9, 84.1, 84.8, 90.1, 93.0, 94.1, 94.9, 95.8, 97.5, 104.3]}, "2024": {"min": 64.0, "q1": 71.7, "median": 78.1, "q3": 84.8, "max": 91.5, "n": 12, "vals": [64.0, 67.1, 70.4, 72.2, 75.0, 77.9, 78.3, 79.0, 84.7, 85.0, 87.6, 91.5]}, "2025": {"min": 58.8, "q1": 62.7, "median": 68.4, "q3": 74.1, "max": 78.4, "n": 12, "vals": [58.8, 61.5, 61.8, 63.0, 65.5, 66.2, 70.6, 70.9, 73.2, 76.7, 78.2, 78.4]}, "2026": {"min": 50.6, "q1": 51.4, "median": 61.1, "q3": 74.4, "max": 86.3, "n": 4, "vals": [50.6, 51.7, 70.5, 86.3]}},
+  early: {"reduction": 1216.4, "increase": 809.9},
+  recent: {"reduction": 1300.6, "increase": 634.6}
+};
+</script>
+<script src="chart-lib.js"></script>
+</body>
+</html>
