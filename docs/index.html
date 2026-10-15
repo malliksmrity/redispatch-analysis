@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redispatch in Germany | Grid congestion costs</title>
+<meta name="description" content="Germany's grid-congestion bill has fallen by more than a third since 2023, but the amount of energy moved has not gone down.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><span>Smrity Mallik &middot; Project page</span><a href="https://github.com/malliksmrity/redispatch-analysis">Code on GitHub</a></div>
+
+  <p class="kicker">Energy grid &middot; data visualisation &middot; Germany</p>
+  <h1>Germany&rsquo;s grid-congestion bill is falling, but the amount of power moved around is not</h1>
+  <p class="lead">When the grid is overloaded, operators tell some power plants to produce less and others more. This is called redispatch. Each unit now costs about 68 euros per MWh, down from about 129 in 2022. The monthly volume has no clear downward trend.</p>
+  <p class="note">Data: SMARD (Bundesnetzagentur) and Netztransparenz, July 2022 to April 2026.</p>
+
+  <noscript><p class="callout">The charts need JavaScript. The main numbers are repeated in the README.</p></noscript>
+
+  <h2>What the numbers show</h2>
+
+  <figure>
+    <div class="box" style="height:320px"><canvas id="c1" role="img" aria-label="Monthly redispatch cost with a 12 month average"></canvas></div>
+    <figcaption><b>Chart 1.</b> Monthly redispatch cost in million euros (bars) and the average of the last 12 months (line). The peak was 349 million in January 2023, April 2026 was 136 million (61 percent lower). Against a fairer yardstick, the 12-month average now (126 million) is 38 percent below the 2023 average (205 million).</figcaption>
+  </figure>
+
+  <figure>
+    <div class="box"><canvas id="c2" role="img" aria-label="Bar chart of median cost per MWh by year"></canvas></div>
+    <figcaption><b>Chart 2.</b> Median cost per MWh moved, by year. It has fallen every year. 2022 has 6 months and 2026 has 4 months, so those two bars rest on fewer data points.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="box" style="height:320px"><canvas id="c3" role="img" aria-label="Monthly redispatch volume in GWh"></canvas></div>
+    <figcaption><b>Chart 3.</b> Energy redispatched per month in GWh. It swings between about 700 and 3,500 with no steady decline. The cheaper bill comes from lower unit cost, not from less congestion.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="box"><canvas id="c4" role="img" aria-label="Bar chart of redispatched energy by grid operator"></canvas></div>
+    <figcaption><b>Chart 4.</b> Total energy redispatched, by the grid operator that ordered it (51,443 measures). TenneT DE accounts for 47.5 percent.</figcaption>
+  </figure>
+
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li>Take monthly cost and volume from SMARD and the list of individual measures from Netztransparenz.</li>
+    <li>Divide cost by volume to get a cost per MWh, and sum the measures by grid operator.</li>
+    <li>Compare with wind generation for the months where both exist (13 months): the two move together (correlation 0.75), but with so few months the plausible range is wide (0.31 to 0.96).</li>
+  </ol>
+
+  <h2>Limits</h2>
+  <ul class="plain">
+    <li>46 months only, and the first and last years are partial.</li>
+    <li>Costs include compensation payments and are what the data source reports. They are not checked against operator accounts.</li>
+    <li>The recommendation in the original report (invest in transmission, starting with TenneT&rsquo;s area) is a reading of these charts, not a cost-benefit study.</li>
+    <li>Wind and redispatch are linked in this data, but wind alone does not explain the swings.</li>
+  </ul>
+
+  <footer>
+    Data: SMARD, &ldquo;Bundesnetzagentur | SMARD.de&rdquo;, CC BY 4.0; Netztransparenz (the four German transmission operators). Check the licence terms at the sources before reuse.
+    Code and notes: <a href="https://github.com/malliksmrity/redispatch-analysis">github.com/malliksmrity/redispatch-analysis</a>.
+    Master&rsquo;s coursework (module M512 Data Visualization, Gisma), extended afterwards. Last checked October 2026.
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<script>
+(function () {
+  var D = window.PAGE_DATA;
+  var css = getComputedStyle(document.documentElement);
+  var accent = css.getPropertyValue('--accent').trim(), grey = css.getPropertyValue('--grey').trim(),
+      text = css.getPropertyValue('--text').trim(), line = css.getPropertyValue('--line').trim(),
+      soft = css.getPropertyValue('--accent-soft').trim();
+  Chart.defaults.color = text; Chart.defaults.borderColor = line;
+  Chart.defaults.font.family = '"Segoe UI", system-ui, sans-serif';
+  var opts = { responsive: true, maintainAspectRatio: false, animation: false };
+  var M = D.monthly;
+
+  new Chart(document.getElementById('c1'), { data: { labels: M.month, datasets: [
+      { type: 'bar', label: 'Monthly cost', data: M.cost_m, backgroundColor: soft, borderColor: accent, borderWidth: 1 },
+      { type: 'line', label: '12-month average', data: M.avg12, borderColor: text, borderWidth: 2, pointRadius: 0 }] },
+    options: Object.assign({ scales: { x: { ticks: { maxTicksLimit: 8 } }, y: { beginAtZero: true, title: { display: true, text: 'Million euros' } } } }, opts) });
+
+  var yrs = Object.keys(D.median_eur_per_mwh_by_year);
+  new Chart(document.getElementById('c2'), { type: 'bar',
+    data: { labels: yrs.map(function (y) { return y + ' (' + D.months_per_year[y] + ' months)'; }),
+            datasets: [{ data: yrs.map(function (y) { return D.median_eur_per_mwh_by_year[y]; }), backgroundColor: accent }] },
+    options: Object.assign({ plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Median euros per MWh' } } } }, opts) });
+
+  new Chart(document.getElementById('c3'), { type: 'line',
+    data: { labels: M.month, datasets: [{ label: 'Redispatched energy', data: M.gwh, borderColor: accent, backgroundColor: accent, borderWidth: 2, pointRadius: 2 }] },
+    options: Object.assign({ plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 8 } }, y: { beginAtZero: true, title: { display: true, text: 'GWh per month' } } } }, opts) });
+
+  var ops = Object.keys(D.energy_by_operator_gwh);
+  new Chart(document.getElementById('c4'), { type: 'bar',
+    data: { labels: ops, datasets: [{ data: ops.map(function (o) { return D.energy_by_operator_gwh[o]; }), backgroundColor: ops.map(function (o, i) { return i === 0 ? accent : grey; }) }] },
+    options: Object.assign({ plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'GWh redispatched, whole period' } } } }, opts) });
+})();
+</script>
+</body>
+</html>

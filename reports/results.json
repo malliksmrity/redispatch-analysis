@@ -1,0 +1,91 @@
+{
+  "months": 46,
+  "first_month": "Jul 2022",
+  "last_month": "Apr 2026",
+  "n_measures": 51443,
+  "peak": {
+    "month": "Jan 2023",
+    "cost_m": 348.8
+  },
+  "latest": {
+    "month": "Apr 2026",
+    "cost_m": 136.48
+  },
+  "decline_from_peak_pct": 60.9,
+  "robustness": {
+    "avg_cost_last_12_months_m": 126.4,
+    "avg_cost_2023_m": 205.2,
+    "decline_avg_2023_to_last12_pct": 38.4
+  },
+  "median_eur_per_mwh_by_year": {
+    "2022": 128.5,
+    "2023": 91.5,
+    "2024": 78.1,
+    "2025": 68.4,
+    "2026": 61.1
+  },
+  "months_per_year": {
+    "2022": 6,
+    "2023": 12,
+    "2024": 12,
+    "2025": 12,
+    "2026": 4
+  },
+  "yearly_totals": {
+    "2022": {
+      "cost_m": 1178.6,
+      "gwh": 9408.0
+    },
+    "2023": {
+      "cost_m": 2462.1,
+      "gwh": 27069.5
+    },
+    "2024": {
+      "cost_m": 1787.5,
+      "gwh": 22792.0
+    },
+    "2025": {
+      "cost_m": 1605.2,
+      "gwh": 23394.5
+    },
+    "2026": {
+      "cost_m": 475.9,
+      "gwh": 7571.6
+    }
+  },
+  "energy_by_operator_gwh": {
+    "TenneT DE": 27091.0,
+    "Amprion": 14661.0,
+    "50Hertz": 7921.0,
+    "TransnetBW": 7413.0
+  },
+  "operator_share": {
+    "TenneT DE": 0.475,
+    "Amprion": 0.257,
+    "50Hertz": 0.139,
+    "TransnetBW": 0.13
+  },
+  "volume_range_gwh": [
+    715.9,
+    3493.69
+  ],
+  "direction_avg_monthly_gwh": {
+    "first_24_months": {
+      "Reductions": 1199.0,
+      "Increases": 771.0
+    },
+    "last_12_months": {
+      "Reductions": 1309.0,
+      "Increases": 603.0
+    }
+  },
+  "wind_vs_redispatch": {
+    "months": 13,
+    "pearson": 0.75,
+    "spearman": 0.76,
+    "bootstrap_95ci_pearson": [
+      0.31,
+      0.96
+    ]
+  }
+}
