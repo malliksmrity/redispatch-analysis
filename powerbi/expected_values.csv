@@ -1,0 +1,13 @@
+measure,expected_value
+Total Cost (m EUR),7509.26
+Total Volume (GWh),90235.64
+Cost per MWh (EUR),83.2183
+"Cost 12M Average (m EUR), as of latest month",126.3767
+Peak Month Cost (m EUR),348.8
+Latest Month Cost (m EUR),136.48
+Decline From Peak %,0.6087
+Reductions Share %,0.6337
+Operator Share % - 50Hertz,0.135
+Operator Share % - Amprion,0.2545
+Operator Share % - TenneT DE,0.477
+Operator Share % - TransnetBW,0.1335
