@@ -1,0 +1,21 @@
+{
+  "name": "Redispatch: weekly live grid summary (SMARD + AI)",
+  "nodes": [
+    {"parameters": {"rule": {"interval": [{"field": "weeks", "weeksInterval": 1}]}}, "id": "n1", "name": "Every week", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 0]},
+    {"parameters": {"url": "https://www.smard.de/app/chart_data/4067/DE/index_hour.json", "options": {}}, "id": "n2", "name": "SMARD wind onshore: list of weeks", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [220, 0]},
+    {"parameters": {"jsCode": "const ts = $input.first().json.timestamps; const last = ts[ts.length - 1];\nreturn [{ json: { url: `https://www.smard.de/app/chart_data/4067/DE/4067_DE_hour_${last}.json` } }];"}, "id": "n3", "name": "Pick latest week", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [440, 0]},
+    {"parameters": {"url": "={{ $json.url }}", "options": {}}, "id": "n4", "name": "SMARD wind onshore: latest week", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [660, 0]},
+    {"parameters": {"jsCode": "const s = $input.first().json.series.filter(p => p[1] !== null);\nconst v = s.map(p => p[1]);\nconst mean = v.reduce((a, b) => a + b, 0) / v.length;\nconst max = Math.max(...v);\nreturn [{ json: { hours: v.length, mean_wind_MW: Math.round(mean), max_wind_MW: Math.round(max), note: 'German onshore wind, newest week in the SMARD feed (may be partial: see hours)' } }];"}, "id": "n5", "name": "Summarise numbers", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [880, 0]},
+    {"parameters": {"promptType": "define", "text": "=You write for a grid-investment committee. In three plain sentences, say what these numbers mean for grid congestion risk this week. Do not invent numbers.\\n{{ JSON.stringify($json) }}"}, "id": "n6", "name": "Plain-language summary (AI)", "type": "@n8n/n8n-nodes-langchain.chainLlm", "typeVersion": 1.5, "position": [1100, 0]},
+    {"parameters": {"model": "claude-sonnet-5-5", "options": {}}, "id": "n7", "name": "Anthropic chat model", "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic", "typeVersion": 1.2, "position": [1100, 220]}
+  ],
+  "connections": {
+    "Every week": {"main": [[{"node": "SMARD wind onshore: list of weeks", "type": "main", "index": 0}]]},
+    "SMARD wind onshore: list of weeks": {"main": [[{"node": "Pick latest week", "type": "main", "index": 0}]]},
+    "Pick latest week": {"main": [[{"node": "SMARD wind onshore: latest week", "type": "main", "index": 0}]]},
+    "SMARD wind onshore: latest week": {"main": [[{"node": "Summarise numbers", "type": "main", "index": 0}]]},
+    "Summarise numbers": {"main": [[{"node": "Plain-language summary (AI)", "type": "main", "index": 0}]]},
+    "Anthropic chat model": {"ai_languageModel": [[{"node": "Plain-language summary (AI)", "type": "ai_languageModel", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}
