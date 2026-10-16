@@ -79,6 +79,47 @@
       "Increases": 603.0
     }
   },
+  "trend_tests": {
+    "volume_kendall_tau": 0.01,
+    "volume_p_value": 0.932,
+    "volume_theil_sen_gwh_per_month_per_year": 8.0,
+    "volume_slope_95ci": [
+      -217.0,
+      209.0
+    ],
+    "unit_cost_kendall_tau": -0.53,
+    "unit_cost_p_value": 0.0,
+    "unit_cost_theil_sen_eur_per_year": -11.7,
+    "unit_cost_slope_95ci": [
+      -15.4,
+      -8.2
+    ],
+    "year_on_year_change_pct_mean_and_95ci": {
+      "volume": [
+        8.6,
+        [
+          -5.4,
+          22.3
+        ]
+      ],
+      "total_cost": [
+        -0.8,
+        [
+          -17.8,
+          19.4
+        ]
+      ],
+      "cost_per_mwh": [
+        -11.6,
+        [
+          -18.6,
+          -4.1
+        ]
+      ]
+    },
+    "yoy_months": 34,
+    "reading": "volume: slope interval includes zero if the lower bound is negative and the upper bound positive; unit cost: clearly negative if the whole interval is below zero"
+  },
   "wind_vs_redispatch": {
     "months": 13,
     "pearson": 0.75,
