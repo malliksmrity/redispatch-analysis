@@ -27,3 +27,8 @@ Give each visual a plain title that states the finding, as on the project page. 
 ## 5. Before you show it
 - Add a text box with the data source and licence (SMARD, CC BY 4.0; Netztransparenz).
 - Export a PDF for your application. Keep the `.pbix` private unless you have checked licences.
+
+## Check your measures
+
+After building the report, compare each measure with expected_values.csv (computed in pandas from the same CSV files, with the whole data range selected). Example: Cost per MWh should read 83.22 EUR and Decline From Peak 60.9 %. If a measure differs, the DAX needs fixing. Note: the 61 % decline compares the peak month (348.8 m EUR) with the latest month (136.5 m EUR). It is a real number but a peak-to-latest comparison; the trend test in the README (total cost -0.8 % per year, range -17.8 to +19.4) is the fairer statement.
+
