@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GridSimEnv | Resolve a grid congestion at minimum cost</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  :root { --bg:#0b1117; --text:#e6edf1; --muted:#9aa8b0; --line:#243039; --accent:#6cc3d1; --card:#121b22; --grey:#8d9aa2; }
+  body { background: var(--bg); color: var(--text); }
+  .wrap { max-width: 1080px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin: 14px 0; }
+  .ctlrow { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: 16px; align-items: end; }
+  @media (max-width: 720px) { .ctlrow { grid-template-columns: minmax(0,1fr); } }
+  .ctlrow input[type=range] { width: 100%; }
+  select, input[type=number] { background: #0e151b; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; max-width: 100%; }
+  .btn { background: #16313a; color: var(--text); border: 1px solid #2c5663; border-radius: 6px; padding: 6px 14px; font: inherit; cursor: pointer; margin: 2px 4px 2px 0; }
+  .btn:hover { background: #1d4350; }
+  .stage { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0a0f14; }
+  .stage canvas { display: block; width: 100%; }
+  .edge { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: var(--muted); margin: 6px 2px; flex-wrap: wrap; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; color: var(--muted); margin: 6px 2px 0; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; margin: 12px 0; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+  .kpi span { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .kpi b { font-size: 21px; font-variant-numeric: tabular-nums; }
+  .kpi.bad b { color: #ff7a6e; } .kpi.good b { color: #4cd18a; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: minmax(0,1fr); } }
+  .cbox { position: relative; height: 250px; }
+  .cbox.tall { height: 290px; }
+  .panel h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+  .panel p.note { margin: 6px 0 0; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+  .tablewrap { overflow-x: auto; }
+  h1, h2 { color: var(--text); }
+  .callout { background: #10202a; border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 4px; }
+  footer { color: var(--muted); font-size: 14px; margin-top: 40px; }
+  #msg { min-height: 1.6em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><span>Smrity Mallik &middot; Simulation</span><a href="https://github.com/malliksmrity/redispatch-analysis" target="_blank" rel="noopener">Code on GitHub</a></div>
+  <p class="kicker">Simulation environment &middot; energy grid &middot; redispatch</p>
+  <h1>GridSimEnv: resolve a grid congestion at minimum cost</h1>
+  <p class="lead">In this hour the market schedule sends more power from the windy north to the demand in the south than the line can carry. Cut the flow by redispatch: reduce generation in the north, raise it by the same amount in the south. Find the cheapest plan, then watch the 3D grid, the pylons and the charts react.</p>
+  <p class="callout"><b>What is real and what is assumed:</b> the hourly German wind series is real (SMARD, 12,961 hours). The two-zone grid, the share of wind sent north to south (20 %), the line limit (72 % of the scheduled flow), the plant limits and all prices are <b>stylised assumptions</b>. The 3D plants and pylons are illustrative. The problem has a provable optimum, so every plan can be graded.</p>
+  <noscript><p class="callout">This simulation needs JavaScript.</p></noscript>
+
+  <div class="panel">
+    <div class="ctlrow">
+      <div><label for="hr">Hour: <b id="hrv"></b></label><input id="hr" type="range" min="0" value="100"></div>
+      <div>
+        <button id="play" class="btn">&#9654; Play hours</button>
+        <label for="mode">Dispatch: </label>
+        <select id="mode"><option value="manual">my plan</option><option value="naive">naive rule</option><option value="opt">optimum</option></select>
+        <label for="spd"> speed </label><select id="spd"><option value="1600">slow</option><option value="900" selected>normal</option><option value="350">fast</option></select>
+      </div>
+    </div>
+    <p id="sit" style="margin:10px 0 0"></p>
+  </div>
+
+  <div class="edge"><span>&larr; NORTH: wind farms, lignite and gas plants</span><span>SOUTH: city, gas peaker, coal reserve, hydro &rarr;</span></div>
+  <div class="stage"><canvas id="gl" aria-label="Interactive 3D model of the two-zone grid. Drag to rotate, scroll to zoom." role="img"></canvas></div>
+  <div class="legend"><span><i style="background:#ff5a4e"></i>line overloaded</span><span><i style="background:#4cd18a"></i>congestion resolved</span><span><i style="background:#4cc2d3"></i>flow within limit</span><span><i style="background:#9aa8b0"></i>smoke ~ plant output</span><span>Drag to rotate, scroll to zoom. Turbines: number follows the wind, spin follows the wind, stopped red ones are curtailed.</span></div>
+
+  <div class="kpis">
+    <div class="kpi"><span>German wind</span><b id="k_wind">-</b></div>
+    <div class="kpi"><span>Scheduled flow</span><b id="k_flow">-</b></div>
+    <div class="kpi"><span>Line limit</span><b id="k_lim">-</b></div>
+    <div class="kpi" id="kb_ex"><span>Must redispatch</span><b id="k_ex">-</b></div>
+    <div class="kpi"><span>Flow after plan</span><b id="k_after">-</b></div>
+    <div class="kpi"><span>Your cost</span><b id="k_cost">-</b></div>
+    <div class="kpi"><span>Optimum cost</span><b id="k_opt">-</b></div>
+    <div class="kpi"><span>Score</span><b id="k_score">-</b></div>
+  </div>
+
+  <h2>Your plan (MW)</h2>
+  <div class="panel">
+    <div class="tablewrap"><table id="opt"><thead><tr><th>Option</th><th>Side</th><th>Max MW</th><th>Price EUR/MW</th><th>Your MW</th></tr></thead><tbody></tbody></table></div>
+    <p><button id="sub" class="btn">Submit plan</button> <button id="naive" class="btn">Fill with the naive rule</button> <button id="best" class="btn">Fill with the optimum</button> <button id="clr" class="btn">Clear</button></p>
+    <p id="msg"></p>
+  </div>
+
+  <h2>Live charts</h2>
+  <div class="grid2">
+    <div class="panel"><h3>Wind around this hour (&plusmn;24 h)</h3><div class="cbox"><canvas id="g1"></canvas></div><p class="note">Real SMARD series. The dot is the hour you are looking at.</p></div>
+    <div class="panel"><h3>Flow, limit and excess, last 24 hours</h3><div class="cbox"><canvas id="g6"></canvas></div><p class="note">Scheduled north-south flow against the line limit. The gap is what redispatch must remove.</p></div>
+    <div class="panel"><h3>Line loading now</h3><div class="cbox"><canvas id="g2"></canvas></div><p class="note">Before your plan, the limit, and after your plan.</p></div>
+    <div class="panel"><h3>Cost: your plan, naive rule, optimum</h3><div class="cbox"><canvas id="g3"></canvas></div><p class="note">EUR for this hour. Updates as you type.</p></div>
+    <div class="panel"><h3>MW per option: yours and the optimum</h3><div class="cbox tall"><canvas id="g4"></canvas></div><p class="note">The optimum uses the cheapest options first on each side.</p></div>
+    <div class="panel"><h3>Merit order (price against cumulative MW)</h3><div class="cbox tall"><canvas id="g5"></canvas></div><p class="note">Steps: cheapest to dearest on each side. The vertical line is the redispatch needed. The optimum buys everything left of it.</p></div>
+    <div class="panel"><h3>Running cost while playing hours</h3><div class="cbox"><canvas id="g8"></canvas></div><p class="note" id="cumnote">Press Play. The naive rule and the optimum are added up hour by hour.</p></div>
+    <div class="panel"><h3>Mean score over 500 real wind hours</h3><div class="cbox"><canvas id="g7"></canvas></div><p class="note">Computed in Python (<code>simulation/evaluate.py</code>) with the exact linear-programme optimum. 1.0 = optimal.</p></div>
+  </div>
+
+  <h2>Scores over 500 real wind hours</h2>
+  <div class="panel"><div class="tablewrap"><table id="tbl"><thead><tr><th>Rule</th><th>Valid plans</th><th>Mean score</th><th>Mean cost (EUR per hour)</th></tr></thead><tbody></tbody></table></div></div>
+
+  <footer>Wind data: SMARD, Bundesnetzagentur | SMARD.de, CC BY 4.0. Everything else about the grid is a teaching assumption. Part of the Redispatch analysis project.</footer>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+var G = window.GSIM, SCALE = 0.20, SHARE = 0.72, $ = function (id) { return document.getElementById(id); };
+var DOWN = [['North wind curtailment', null, 120], ['North lignite plant', 1500, 95], ['North gas plant', 900, 80]];
+var UP = [['South gas peaker', 1400, 140], ['South hard-coal reserve', 1000, 110], ['South hydro/pumped storage', 600, 75]];
+var ALL = DOWN.concat(UP);
+var flow = 0, limit = 0, excess = 0, inputs = {}, hour = 0, wind = 0;
+var hrs = G.wind.length, MAXW = Math.max.apply(null, G.wind); $('hr').max = hrs - 1;
+var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+var fmt = function (n) { return Math.round(n).toLocaleString('en-US'); };
+function stamp(i) { var d = new Date(new Date(G.start + 'Z').getTime() + i * 3600000); return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'; }
+function capOf(o) { return o[1] === null ? flow : o[1]; }
+
+// ---------- model ----------
+function plan() { var p = {}; Object.keys(inputs).forEach(function (k) { p[k] = +inputs[k].value || 0; }); return p; }
+function fill(p) { Object.keys(inputs).forEach(function (k) { inputs[k].value = Math.round((p[k] || 0) * 10) / 10; }); refresh(); }
+function check(p) {
+  var errs = [], d = 0, u = 0, cost = 0;
+  DOWN.forEach(function (o) { var v = p[o[0]] || 0; d += v; cost += v * o[2]; if (v < 0 || v > capOf(o) + 1e-6) errs.push(o[0] + ': ' + v + ' MW outside 0 to ' + Math.round(capOf(o))); });
+  UP.forEach(function (o) { var v = p[o[0]] || 0; u += v; cost += v * o[2]; if (v < 0 || v > capOf(o) + 1e-6) errs.push(o[0] + ': ' + v + ' MW outside 0 to ' + Math.round(capOf(o))); });
+  if (Math.abs(d - u) > 1) errs.push('reduction (' + Math.round(d) + ' MW) and increase (' + Math.round(u) + ' MW) must balance');
+  if (d < excess - 1) errs.push('the flow is still ' + Math.round(excess - d) + ' MW over the limit');
+  return { valid: errs.length === 0, errors: errs, cost: Math.round(cost), down: d, up: u };
+}
+function optimum() {  // cheapest first on each side, exactly `excess` MW: the linear-programme optimum for this problem
+  var p = {}, cost = 0;
+  [DOWN, UP].forEach(function (side) { var rem = excess; side.slice().sort(function (a, b) { return a[2] - b[2]; }).forEach(function (o) { var x = Math.min(rem, capOf(o)); if (x > 0) { p[o[0]] = x; cost += x * o[2]; rem -= x; } }); });
+  return { plan: p, cost: Math.round(cost) };
+}
+function naive() {  // largest conventional plant first, same as simulation/grid_env.py
+  var p = {}, rem = excess; p['North lignite plant'] = Math.min(rem, 1500); rem -= p['North lignite plant'];
+  if (rem > 0) { p['North gas plant'] = Math.min(rem, 900); rem -= p['North gas plant']; } if (rem > 0) p['North wind curtailment'] = rem;
+  rem = excess; ['South gas peaker', 'South hard-coal reserve', 'South hydro/pumped storage'].forEach(function (k) { var o = UP.filter(function (x) { return x[0] === k; })[0], x = Math.min(rem, o[1]); if (x > 0) { p[k] = x; rem -= x; } });
+  return p;
+}
+function costOf(p) { return ALL.reduce(function (a, o) { return a + (p[o[0]] || 0) * o[2]; }, 0); }
+
+// ---------- table and inputs ----------
+function buildTable() {
+  var tb = document.querySelector('#opt tbody'); tb.innerHTML = ''; inputs = {};
+  ALL.forEach(function (o, k) {
+    var tr = document.createElement('tr'), side = k < DOWN.length ? 'reduce in the north' : 'increase in the south';
+    [o[0], side, Math.round(capOf(o)), o[2]].forEach(function (v) { var td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+    var td = document.createElement('td'), inp = document.createElement('input'); inp.type = 'number'; inp.min = 0; inp.max = Math.round(capOf(o)); inp.step = 10; inp.value = 0; inp.style.width = '6em'; inp.setAttribute('aria-label', o[0] + ' MW');
+    inp.oninput = refresh; td.appendChild(inp); tr.appendChild(td); tb.appendChild(tr); inputs[o[0]] = inp;
+  });
+}
+var cum = { n: 0, naive: 0, opt: 0, labels: [], a: [], b: [] };
+function load() {
+  hour = +$('hr').value; wind = G.wind[hour]; flow = wind * SCALE; limit = flow * SHARE; excess = flow - limit;
+  $('hrv').textContent = stamp(hour);
+  $('sit').textContent = 'German wind ' + wind.toLocaleString('en-US') + ' MW. Scheduled flow north to south ' + fmt(flow) + ' MW, the line carries ' + fmt(limit) + ' MW. Redispatch at least ' + excess.toFixed(1) + ' MW, balanced between north and south.';
+  buildTable(); $('msg').textContent = '';
+  var m = $('mode').value; if (m === 'naive') fillQuiet(naive()); else if (m === 'opt') fillQuiet(optimum().plan);
+  refresh(true);
+}
+function fillQuiet(p) { Object.keys(inputs).forEach(function (k) { inputs[k].value = Math.round((p[k] || 0) * 10) / 10; }); }
+
+// ---------- charts ----------
+Chart.defaults.color = '#9aa8b0'; Chart.defaults.borderColor = '#243039'; Chart.defaults.font.family = '"Segoe UI", system-ui, sans-serif';
+var base = { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } } };
+var charts = {};
+function mk(id, cfg) { charts[id] = new Chart($(id), cfg); return charts[id]; }
+var offs = []; for (var q = -24; q <= 24; q++) offs.push(q);
+mk('g1', { type: 'line', data: { labels: offs, datasets: [
+  { label: 'Wind (MW)', data: [], borderColor: '#6cc3d1', backgroundColor: 'rgba(108,195,209,.15)', fill: true, pointRadius: 0, borderWidth: 2, tension: .2 },
+  { label: 'This hour', data: [], borderColor: '#ffd34e', backgroundColor: '#ffd34e', pointRadius: 6, showLine: false } ] },
+  options: Object.assign({}, base, { scales: { x: { title: { display: true, text: 'hours from now' }, ticks: { maxTicksLimit: 9 } }, y: { title: { display: true, text: 'MW' } } } }) });
+var lab24 = []; for (var q2 = -23; q2 <= 0; q2++) lab24.push(q2);
+mk('g6', { type: 'line', data: { labels: lab24, datasets: [
+  { label: 'Scheduled flow', data: [], borderColor: '#ff7a6e', pointRadius: 0, borderWidth: 2, tension: .2 },
+  { label: 'Line limit', data: [], borderColor: '#4cc2d3', pointRadius: 0, borderWidth: 2, borderDash: [6, 4], tension: .2, fill: '-1', backgroundColor: 'rgba(255,90,78,.25)' } ] },
+  options: Object.assign({}, base, { scales: { x: { title: { display: true, text: 'hours from now' }, ticks: { maxTicksLimit: 9 } }, y: { title: { display: true, text: 'MW' }, beginAtZero: true } } }) });
+mk('g2', { type: 'bar', data: { labels: ['Scheduled', 'Line limit', 'After your plan'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#ff5a4e', '#4cc2d3', '#4cd18a'] }] },
+  options: Object.assign({}, base, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'MW' } } } }) });
+mk('g3', { type: 'bar', data: { labels: ['Your plan', 'Naive rule', 'Optimum'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#6cc3d1', '#b35c1e', '#4cd18a'] }] },
+  options: Object.assign({}, base, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'EUR' } } } }) });
+mk('g4', { type: 'bar', data: { labels: ALL.map(function (o) { return o[0].replace('North ', 'N ').replace('South ', 'S ').replace('hard-coal reserve', 'coal').replace('hydro/pumped storage', 'hydro'); }), datasets: [
+  { label: 'Your MW', data: [], backgroundColor: '#6cc3d1' }, { label: 'Optimum MW', data: [], backgroundColor: '#4cd18a' } ] },
+  options: Object.assign({}, base, { indexAxis: 'y', scales: { x: { beginAtZero: true, title: { display: true, text: 'MW' } } } }) });
+mk('g5', { type: 'scatter', data: { datasets: [
+  { label: 'Reduce in north', data: [], borderColor: '#ff9a4e', backgroundColor: '#ff9a4e', showLine: true, stepped: 'before', pointRadius: 0, borderWidth: 2 },
+  { label: 'Increase in south', data: [], borderColor: '#6cc3d1', backgroundColor: '#6cc3d1', showLine: true, stepped: 'before', pointRadius: 0, borderWidth: 2 },
+  { label: 'Redispatch needed', data: [], borderColor: '#ff5a4e', backgroundColor: '#ff5a4e', showLine: true, borderDash: [5, 4], pointRadius: 0, borderWidth: 2 } ] },
+  options: Object.assign({}, base, { scales: { x: { type: 'linear', min: 0, title: { display: true, text: 'cumulative MW' } }, y: { min: 60, max: 150, title: { display: true, text: 'EUR per MW' } } } }) });
+mk('g8', { type: 'line', data: { labels: [], datasets: [
+  { label: 'Naive rule (cumulative)', data: [], borderColor: '#b35c1e', pointRadius: 0, borderWidth: 2, tension: .1 },
+  { label: 'Optimum (cumulative)', data: [], borderColor: '#4cd18a', pointRadius: 0, borderWidth: 2, tension: .1 } ] },
+  options: Object.assign({}, base, { scales: { x: { title: { display: true, text: 'hours played' } }, y: { beginAtZero: true, title: { display: true, text: 'EUR' } } } }) });
+var P = G.results.policies, pk = Object.keys(P);
+mk('g7', { type: 'bar', data: { labels: pk, datasets: [{ data: pk.map(function (k) { return P[k].mean_score; }), backgroundColor: pk.map(function (k, i) { return ['#8d9aa2', '#b35c1e', '#4cd18a', '#6cc3d1'][i % 4]; }) }] },
+  options: Object.assign({}, base, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 1, title: { display: true, text: 'mean score' } } } }) });
+var tb = document.querySelector('#tbl tbody');
+pk.forEach(function (k) { var v = P[k], tr = document.createElement('tr'); [k, v.valid_share, v.mean_score, v.mean_cost_EUR.toLocaleString('en-US')].forEach(function (c) { var td = document.createElement('td'); td.textContent = c; tr.appendChild(td); }); tb.appendChild(tr); });
+
+// ---------- 3D scene ----------
+var cv = $('gl'), renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+var scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0f14); scene.fog = new THREE.Fog(0x0a0f14, 38, 70);
+var cam = new THREE.PerspectiveCamera(42, 2, 0.1, 200); cam.position.set(0, 13, 22);
+var ctl = new OrbitControls(cam, cv); ctl.target.set(0, 1.5, 0); ctl.maxPolarAngle = Math.PI * 0.48; ctl.minDistance = 8; ctl.maxDistance = 45; ctl.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xbcd7ff, 0x1a2430, 1.0));
+var sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(-8, 18, 10); scene.add(sun);
+var M = function (c, o) { return new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.7, metalness: 0.1 }, o || {})); };
+function box(w, h, d, mat, x, y, z, parent) { var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); (parent || scene).add(m); return m; }
+function cyl(r1, r2, h, mat, x, y, z, parent, seg) { var m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, seg || 12), mat); m.position.set(x, y, z); (parent || scene).add(m); return m; }
+// ground, north and south halves
+var gN = new THREE.Mesh(new THREE.PlaneGeometry(23, 22), M(0x12261f)); gN.rotation.x = -Math.PI / 2; gN.position.set(-11.5, 0, 0); scene.add(gN);
+var gS = new THREE.Mesh(new THREE.PlaneGeometry(23, 22), M(0x1c2230)); gS.rotation.x = -Math.PI / 2; gS.position.set(11.5, 0, 0); scene.add(gS);
+var gh = new THREE.GridHelper(46, 46, 0x1f2c36, 0x182029); gh.position.y = 0.02; scene.add(gh);
+
+// wind turbines (24 slots)
+var turbines = [], towerMat = M(0xdfe6ea), bladeMat = M(0xf2f5f7);
+for (var r = 0; r < 4; r++) for (var c = 0; c < 6; c++) {
+  var g = new THREE.Group(); g.position.set(-15.2 + c * 1.75 + (r % 2) * 0.8, 0, -5.2 + r * 2.7); scene.add(g);
+  cyl(0.05, 0.1, 2.7, towerMat, 0, 1.35, 0, g, 8);
+  var nac = box(0.28, 0.2, 0.42, M(0xb8c4cc), 0, 2.75, 0, g);
+  var rotor = new THREE.Group(); rotor.position.set(0, 2.75, 0.26); g.add(rotor);
+  for (var b = 0; b < 3; b++) { var bl = box(0.09, 1.25, 0.025, bladeMat, 0, 0.62, 0); var pv = new THREE.Group(); pv.rotation.z = b * 2.094; pv.add(bl); rotor.add(pv); }
+  turbines.push({ g: g, rotor: rotor, nac: nac, ph: Math.random() * 6 });
+}
+// power stations
+function plantMesh(x, z, bodyC, h) {
+  var g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  box(2, 1.2, 1.4, M(bodyC), 0, 0.6, 0, g); var ch = cyl(0.17, 0.24, h, M(0x6a7680), 0.55, 0.6 + h / 2, 0, g); var glow = box(0.5, 0.1, 0.5, M(0x331100, { emissive: 0xff7a1a, emissiveIntensity: 0.0 }), -0.4, 1.25, 0, g);
+  var smoke = []; for (var s = 0; s < 8; s++) { var sm = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), new THREE.MeshBasicMaterial({ color: 0xaab4ba, transparent: true, opacity: 0 })); scene.add(sm); smoke.push(sm); }
+  return { g: g, top: new THREE.Vector3(x + 0.55, 0.6 + h, z), smoke: smoke, glow: glow, level: 0.05 };
+}
+var plants = {
+  'North lignite plant': plantMesh(-13, 7.3, 0x3b4650, 2.6), 'North gas plant': plantMesh(-9, 7.3, 0x46525c, 1.9),
+  'South gas peaker': plantMesh(6.5, 7.3, 0x46525c, 1.9), 'South hard-coal reserve': plantMesh(10, 7.3, 0x3a444d, 2.4) };
+// hydro dam: wall, water, glow
+var dam = new THREE.Group(); dam.position.set(14, 0, 7.3); scene.add(dam);
+box(2.2, 1.0, 0.5, M(0x8a949b), 0, 0.5, 0.6, dam); var water = box(2.2, 0.15, 1.6, M(0x1fa6c9, { emissive: 0x0a5a73, emissiveIntensity: 0.3, transparent: true, opacity: 0.85 }), 0, 0.6, -0.4, dam);
+var fall = box(0.6, 0.9, 0.08, M(0x7fd8ee, { transparent: true, opacity: 0.6 }), 0, 0.5, 0.88, dam);
+plants['South hydro/pumped storage'] = { g: dam, level: 0.05, water: water, fall: fall, smoke: [] };
+// city (south)
+var wins = [], cityMat = M(0x2a3a46);
+for (var i = 0; i < 6; i++) for (var j = 0; j < 4; j++) {
+  var hh = 0.8 + ((i * 7 + j * 11) % 9) * 0.28, bx = 6.5 + i * 1.5, bz = -6 + j * 2.0;
+  box(1.0, hh, 1.0, cityMat, bx, hh / 2, bz);
+  var wm = M(0x1a1a14, { emissive: 0xffd27a, emissiveIntensity: 0.9 }); wins.push(wm);
+  for (var w = 0; w < Math.floor(hh / 0.35); w++) box(0.72, 0.1, 1.02, wm, bx, 0.3 + w * 0.35, bz);
+}
+// pylons and cables
+var pyl = [], PX0 = -5, PX1 = 5, NP = 7, ARM = 2.6;
+for (var p = 0; p < NP; p++) {
+  var px = PX0 + (PX1 - PX0) * p / (NP - 1), pg = new THREE.Group(); pg.position.set(px, 0, 0); scene.add(pg);
+  var legs = M(0xb7c2c9); [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]].forEach(function (l) { var leg = cyl(0.025, 0.05, 2.7, legs, l[0], 1.35, l[1], pg, 5); leg.rotation.z = -l[0] * 0.12; leg.rotation.x = l[1] * 0.12; });
+  box(0.07, 0.06, 1.3, legs, 0, ARM, 0, pg); box(0.07, 0.06, 1.0, legs, 0, ARM - 0.5, 0, pg);
+  var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0x4cc2d3 })); lamp.position.set(0, 2.85, 0); pg.add(lamp); pyl.push(lamp);
+}
+var cableMat = new THREE.LineBasicMaterial({ color: 0x4cc2d3 });
+function sagY(u) { var f = (u * (NP - 1)) % 1; return ARM - 0.32 * Math.sin(Math.PI * f); }
+[-0.6, 0, 0.6].forEach(function (z) { var pts = []; for (var s = 0; s <= 120; s++) { var u = s / 120; pts.push(new THREE.Vector3(PX0 + (PX1 - PX0) * u, sagY(u === 1 ? 0.9999 : u), z)); } scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), cableMat)); });
+var pulses = [], pulseMat = new THREE.MeshBasicMaterial({ color: 0x4cc2d3 });
+for (var pu = 0; pu < 72; pu++) { var pm = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), pulseMat); scene.add(pm); pulses.push({ m: pm, u: Math.random(), lane: pu % 3 }); }
+// substations at each end
+box(0.9, 0.7, 0.9, M(0x55616b), -5.9, 0.35, 0); box(0.9, 0.7, 0.9, M(0x55616b), 5.9, 0.35, 0);
+
+// ---------- state used by the animation ----------
+var view = { shown: 0, over: false, valid: false, p: {}, nT: 6, stopped: 0 };
+var maxFlowScale = MAXW * SCALE;
+function resize() { var w = cv.parentElement.clientWidth, h = w < 600 ? 330 : 470; renderer.setSize(w, h, false); cv.style.height = h + 'px'; cam.aspect = w / h; cam.updateProjectionMatrix();
+  var k = Math.max(1, 1.9 / cam.aspect); cam.position.set(0, 13 * k, 22 * k); }
+window.addEventListener('resize', resize); resize();
+var last = performance.now();
+function animate(now) {
+  var dt = Math.min(0.05, (now - last) / 1000); last = now; var t = now / 1000;
+  var wf = Math.min(1, wind / MAXW), spin = reduceMotion ? 0 : (0.4 + wf * 7);
+  turbines.forEach(function (tb2, k) {
+    var on = k < view.nT; tb2.g.visible = on; if (!on) return; var stopped = k < view.stopped;
+    if (!stopped) tb2.rotor.rotation.z -= dt * spin * (0.9 + 0.2 * Math.sin(tb2.ph + k));
+    tb2.nac.material.color.setHex(stopped ? 0xd0453a : 0xb8c4cc);
+  });
+  var col = view.valid ? 0x4cd18a : (view.over ? 0xff5a4e : 0x4cc2d3);
+  cableMat.color.setHex(col); pulseMat.color.setHex(col); pyl.forEach(function (l) { l.material.color.setHex(col); });
+  var np = Math.round(6 + 66 * Math.min(1, view.shown / maxFlowScale * 1.6)), sp = reduceMotion ? 0 : 0.04 + Math.min(1, view.shown / maxFlowScale * 1.6) * 0.22;
+  pulses.forEach(function (o, k) { o.m.visible = k < np; o.u = (o.u + sp * dt) % 1; o.m.position.set(PX0 + (PX1 - PX0) * o.u, sagY(o.u) + 0.02, [-0.6, 0, 0.6][o.lane]); o.m.scale.setScalar(view.over ? 1.5 : 1); });
+  Object.keys(plants).forEach(function (k) {
+    var pl = plants[k], lv = Math.max(0.03, Math.min(1, view.p['lv:' + k] === undefined ? 0.05 : view.p['lv:' + k]));
+    pl.level += (lv - pl.level) * Math.min(1, dt * 4);
+    if (pl.water) { pl.water.position.y = 0.45 + pl.level * 0.4; pl.water.material.emissiveIntensity = 0.1 + pl.level * 1.2; pl.fall.scale.y = 0.2 + pl.level; pl.fall.material.opacity = 0.2 + pl.level * 0.6; return; }
+    pl.glow.material.emissiveIntensity = pl.level * 1.6;
+    pl.smoke.forEach(function (sm, s) { var kk = ((t * (reduceMotion ? 0 : 0.35) + s / pl.smoke.length) % 1); sm.position.set(pl.top.x + kk * 0.9, pl.top.y + 0.2 + kk * 3.2, pl.top.z); sm.scale.setScalar(0.4 + kk * 1.6); sm.material.opacity = (1 - kk) * 0.55 * Math.min(1, pl.level + 0.1); });
+  });
+  ctl.update(); renderer.render(scene, cam); requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// ---------- refresh: recompute everything from inputs ----------
+var lastScore = null;
+function refresh(fresh) {
+  var p = plan(), c = check(p), o = optimum(), nv = costOf(naive());
+  view.p = {}; ALL.forEach(function (op) { var v = p[op[0]] || 0, cp = op[1] === null ? Math.max(1, flow) : op[1]; view.p[op[0]] = v; view.p['lv:' + op[0]] = (DOWN.indexOf(op) >= 0 && op[1] !== null) ? 1 - v / cp : (op[1] === null ? 0 : v / cp); });
+  view.valid = c.valid && excess > 0; view.over = !view.valid && excess > 0;
+  var after = Math.max(0, flow - Math.min(c.down, c.up)); view.shown = c.valid ? limit : flow;
+  view.nT = Math.max(3, Math.min(24, Math.round(wind / MAXW * 24))); view.stopped = Math.min(view.nT, Math.round(((p['North wind curtailment'] || 0) / Math.max(1, flow)) * view.nT * 1.0 + ((p['North wind curtailment'] || 0) > 0 ? 0.5 : 0)));
+  $('k_wind').textContent = fmt(wind) + ' MW'; $('k_flow').textContent = fmt(flow) + ' MW'; $('k_lim').textContent = fmt(limit) + ' MW';
+  $('k_ex').textContent = excess.toFixed(0) + ' MW'; $('kb_ex').className = 'kpi' + (view.over ? ' bad' : ' good');
+  $('k_after').textContent = fmt(c.valid ? limit : after) + ' MW'; $('k_cost').textContent = c.cost ? fmt(c.cost) + ' EUR' : '-'; $('k_opt').textContent = fmt(o.cost) + ' EUR';
+  var score = c.valid && c.cost > 0 ? Math.min(1, o.cost / c.cost) : null; $('k_score').textContent = score === null ? '-' : score.toFixed(3); $('k_score').parentElement.className = 'kpi' + (score === null ? '' : (score > 0.999 ? ' good' : ''));
+  // charts
+  var w1 = [], mk1 = []; for (var q = -24; q <= 24; q++) { var ix = hour + q; w1.push(ix >= 0 && ix < hrs ? G.wind[ix] : null); mk1.push(q === 0 ? wind : null); }
+  charts.g1.data.datasets[0].data = w1; charts.g1.data.datasets[1].data = mk1; charts.g1.update('none');
+  var f6 = [], l6 = []; for (var q3 = -23; q3 <= 0; q3++) { var jx = Math.max(0, hour + q3); f6.push(G.wind[jx] * SCALE); l6.push(G.wind[jx] * SCALE * SHARE); }
+  charts.g6.data.datasets[0].data = f6; charts.g6.data.datasets[1].data = l6; charts.g6.update('none');
+  charts.g2.data.datasets[0].data = [flow, limit, c.valid ? limit : after]; charts.g2.update('none');
+  charts.g3.data.datasets[0].data = [c.cost, nv, o.cost]; charts.g3.update('none');
+  charts.g4.data.datasets[0].data = ALL.map(function (op) { return p[op[0]] || 0; }); charts.g4.data.datasets[1].data = ALL.map(function (op) { return o.plan[op[0]] || 0; }); charts.g4.update('none');
+  function steps(side) { var arr = side.slice().sort(function (a, b) { return a[2] - b[2]; }), x = 0, pts = [{ x: 0, y: arr[0][2] }]; arr.forEach(function (op) { var cp = Math.min(capOf(op), excess * 2.2 + 400); pts.push({ x: x, y: op[2] }); x += cp; pts.push({ x: x, y: op[2] }); }); return pts; }
+  charts.g5.data.datasets[0].data = steps(DOWN); charts.g5.data.datasets[1].data = steps(UP);
+  charts.g5.data.datasets[2].data = [{ x: excess, y: 60 }, { x: excess, y: 150 }]; charts.g5.options.scales.x.max = Math.round(excess * 2.2 + 400); charts.g5.update('none');
+  lastScore = score;
+  view.c = c; view.o = o; view.nv = nv;
+}
+function submit() {
+  var c = check(plan()), o = optimum();
+  if (!c.valid) { $('msg').textContent = 'Plan not valid: ' + c.errors.join('; ') + '.'; return; }
+  var score = c.cost > 0 ? Math.min(1, o.cost / c.cost) : 1;
+  $('msg').textContent = 'Valid. Cost ' + c.cost.toLocaleString('en-US') + ' EUR, optimum ' + o.cost.toLocaleString('en-US') + ' EUR. Score ' + score.toFixed(3) + ' (1.0 = optimal). Optimal plan: ' + Object.keys(o.plan).map(function (k) { return k + ' ' + o.plan[k].toFixed(0) + ' MW'; }).join(', ') + '.';
+}
+$('hr').oninput = function () { cum = { n: 0, naive: 0, opt: 0, labels: [], a: [], b: [] }; updCum(); load(); };
+$('mode').onchange = load; $('clr').onclick = function () { fill({}); $('msg').textContent = ''; };
+$('naive').onclick = function () { fill(naive()); }; $('best').onclick = function () { fill(optimum().plan); }; $('sub').onclick = submit;
+function updCum() { charts.g8.data.labels = cum.labels; charts.g8.data.datasets[0].data = cum.a; charts.g8.data.datasets[1].data = cum.b; charts.g8.update('none');
+  $('cumnote').textContent = cum.n ? ('After ' + cum.n + ' hours the naive rule cost ' + fmt(cum.naive) + ' EUR and the optimum ' + fmt(cum.opt) + ' EUR: ' + fmt(cum.naive - cum.opt) + ' EUR saved (' + (cum.naive ? ((1 - cum.opt / cum.naive) * 100).toFixed(1) : 0) + ' %).') : 'Press Play. The naive rule and the optimum are added up hour by hour.'; }
+function step() {
+  var nx = hour + 1; if (nx >= hrs) nx = 0; $('hr').value = nx; load();
+  cum.n++; cum.naive += view.nv; cum.opt += view.o.cost; cum.labels.push(cum.n); cum.a.push(Math.round(cum.naive)); cum.b.push(Math.round(cum.opt)); updCum();
+}
+var timer = null;
+$('play').onclick = function () { if (timer) { clearInterval(timer); timer = null; this.innerHTML = '&#9654; Play hours'; return; } this.innerHTML = '&#10074;&#10074; Pause'; var s = this; step(); timer = setInterval(step, +$('spd').value); };
+$('spd').onchange = function () { if (timer) { clearInterval(timer); timer = setInterval(step, +$('spd').value); } };
+window.__view = view; window.__t = { load: load, optimum: optimum, naive: naive, check: check, plan: plan, fill: fill, step: step, charts: charts, submit: submit };
+load();
+</script>
+</body>
+</html>

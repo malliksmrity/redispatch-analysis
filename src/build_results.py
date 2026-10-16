@@ -62,6 +62,31 @@ def main():
     boots = [both.sample(len(both), replace=True, random_state=int(s)).corr().iloc[0, 1] for s in rng.integers(0, 10**6, 2000)]
     ci = np.nanpercentile(boots, [2.5, 97.5])
 
+    # trend tests: is volume really flat while unit cost falls? (seasonality removed by comparing each month with the same month a year earlier)
+    from scipy.stats import kendalltau, theilslopes
+    t_idx = np.arange(len(vc)) / 12.0  # years since July 2022
+    yoy = vc.set_index("date")[["gwh", "cost_m", "eur_per_mwh"]]
+    yoy = (yoy / yoy.shift(12, freq="MS") - 1).dropna() * 100
+    rng2 = np.random.default_rng(7)
+
+    def boot_mean_ci(x):
+        x = np.asarray(x)
+        m = [rng2.choice(x, len(x)).mean() for _ in range(3000)]
+        return round(float(x.mean()), 1), [round(float(v), 1) for v in np.percentile(m, [2.5, 97.5])]
+
+    tau_v, p_v = kendalltau(t_idx, vc["gwh"])
+    tau_u, p_u = kendalltau(t_idx, vc["eur_per_mwh"])
+    sl_v = theilslopes(vc["gwh"], t_idx)
+    sl_u = theilslopes(vc["eur_per_mwh"], t_idx)
+    trend = {
+        "volume_kendall_tau": round(float(tau_v), 2), "volume_p_value": round(float(p_v), 3),
+        "volume_theil_sen_gwh_per_month_per_year": round(float(sl_v[0]), 0), "volume_slope_95ci": [round(float(sl_v[2]), 0), round(float(sl_v[3]), 0)],
+        "unit_cost_kendall_tau": round(float(tau_u), 2), "unit_cost_p_value": round(float(p_u), 4),
+        "unit_cost_theil_sen_eur_per_year": round(float(sl_u[0]), 1), "unit_cost_slope_95ci": [round(float(sl_u[2]), 1), round(float(sl_u[3]), 1)],
+        "year_on_year_change_pct_mean_and_95ci": {"volume": boot_mean_ci(yoy["gwh"]), "total_cost": boot_mean_ci(yoy["cost_m"]), "cost_per_mwh": boot_mean_ci(yoy["eur_per_mwh"])},
+        "yoy_months": int(len(yoy)),
+        "reading": "volume: slope interval includes zero if the lower bound is negative and the upper bound positive; unit cost: clearly negative if the whole interval is below zero"}
+
     out = {
         "months": int(len(vc)), "first_month": vc.Month.iloc[0], "last_month": vc.Month.iloc[-1], "n_measures": int(len(rd)),
         "peak": {"month": peak.Month, "cost_m": float(peak.cost_m)},
@@ -76,6 +101,7 @@ def main():
         "volume_range_gwh": [float(vc.gwh.min()), float(vc.gwh.max())],
         "direction_avg_monthly_gwh": {"first_24_months": {c: round(float(early[c].mean()), 0) for c in ["Reductions", "Increases"]},
                                       "last_12_months": {c: round(float(recent[c].mean()), 0) for c in ["Reductions", "Increases"]}},
+        "trend_tests": trend,
         "wind_vs_redispatch": {"months": int(len(both)), "pearson": round(pear, 2), "spearman": round(spear, 2),
                                "bootstrap_95ci_pearson": [round(float(ci[0]), 2), round(float(ci[1]), 2)]},
     }

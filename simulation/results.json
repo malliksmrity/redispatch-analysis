@@ -1,0 +1,17 @@
+{
+  "hours": 500,
+  "assumption": "stylised two-zone grid and prices, see grid_env.py",
+  "policies": {
+    "naive rule (largest plant first)": {
+      "valid_share": 1.0,
+      "mean_score": 0.714,
+      "mean_cost_EUR": 193748
+    },
+    "cheapest first (the optimum)": {
+      "valid_share": 1.0,
+      "mean_score": 1.0,
+      "mean_cost_EUR": 147434
+    }
+  },
+  "mean_excess_MW": 839.0
+}

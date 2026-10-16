@@ -16,6 +16,7 @@
   <p class="lead">When the grid is overloaded, operators tell some power plants to produce less and others more. This is called redispatch. Each unit now costs about 68 euros per MWh, down from about 129 in 2022. The monthly volume has no clear downward trend.</p>
   <p class="note">Data: SMARD (Bundesnetzagentur) and Netztransparenz, July 2022 to April 2026.</p>
 
+  <p class="callout"><b>Try it live:</b> <a href="explorer/index.html">explorer</a> for the monthly data, and <a href="https://huggingface.co/spaces/malliksmrity/grid-sim-env" target="_blank" rel="noopener">GridSimEnv</a>, a congestion simulation on real wind hours.</p>
   <noscript><p class="callout">The charts need JavaScript. The main numbers are repeated in the README.</p></noscript>
 
   <h2>What the numbers show</h2>
@@ -39,6 +40,15 @@
     <div class="box"><canvas id="c4" role="img" aria-label="Bar chart of redispatched energy by grid operator"></canvas></div>
     <figcaption><b>Chart 4.</b> Total energy redispatched, by the grid operator that ordered it (51,443 measures). TenneT DE accounts for 47.5 percent.</figcaption>
   </figure>
+
+  <h2>Are these trends real, or just noise?</h2>
+  <p>Each month is compared with the same month a year earlier, so winter peaks do not distort the result. With bootstrap intervals (a 95 percent range from resampling):</p>
+  <div class="facts">
+    <div class="fact"><b id="t1"></b><span>cost per MWh, year on year</span></div>
+    <div class="fact"><b id="t2"></b><span>volume, year on year</span></div>
+    <div class="fact"><b id="t3"></b><span>total cost, year on year</span></div>
+  </div>
+  <p id="ttxt" class="note"></p>
 
   <h2>How it works</h2>
   <ol class="steps">
@@ -91,6 +101,12 @@
     data: { labels: M.month, datasets: [{ label: 'Redispatched energy', data: M.gwh, borderColor: accent, backgroundColor: accent, borderWidth: 2, pointRadius: 2 }] },
     options: Object.assign({ plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 8 } }, y: { beginAtZero: true, title: { display: true, text: 'GWh per month' } } } }, opts) });
 
+  var Y = D.trend_tests.year_on_year_change_pct_mean_and_95ci;
+  function fmt(a) { return (a[0] > 0 ? '+' : '') + a[0] + ' % (' + a[1][0] + ' to ' + a[1][1] + ')'; }
+  document.getElementById('t1').textContent = fmt(Y.cost_per_mwh);
+  document.getElementById('t2').textContent = fmt(Y.volume);
+  document.getElementById('t3').textContent = fmt(Y.total_cost);
+  document.getElementById('ttxt').textContent = 'Only the cost per MWh has a range entirely below zero, so it has really fallen. Volume and total cost have ranges that include zero: with ' + D.trend_tests.yoy_months + ' year-on-year months the data can not tell a flat line from a change of about plus or minus 20 percent. A rank test on the monthly volume agrees (Kendall tau ' + D.trend_tests.volume_kendall_tau + ', p = ' + D.trend_tests.volume_p_value + ').';
   var ops = Object.keys(D.energy_by_operator_gwh);
   new Chart(document.getElementById('c4'), { type: 'bar',
     data: { labels: ops, datasets: [{ data: ops.map(function (o) { return D.energy_by_operator_gwh[o]; }), backgroundColor: ops.map(function (o, i) { return i === 0 ? accent : grey; }) }] },
