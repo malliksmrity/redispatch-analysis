@@ -7,6 +7,6 @@ pinned: false
 
 # GridSimEnv
 
-Resolve a north-south grid congestion in a real wind hour at minimum cost. Static page: runs in your browser.
+An animated north-south grid map: resolve a congestion in a real wind hour at minimum cost. Runs in your browser.
 
 Code and notes: https://github.com/malliksmrity/redispatch-analysis
