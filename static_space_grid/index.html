@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GridSimEnv | Resolve a grid congestion at minimum cost</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><span>Smrity Mallik &middot; Simulation</span><a href="https://github.com/malliksmrity/redispatch-analysis">Code on GitHub</a></div>
+  <p class="kicker">Simulation environment &middot; energy grid &middot; redispatch</p>
+  <h1>GridSimEnv: resolve a grid congestion at minimum cost</h1>
+  <p class="lead">In this hour the market schedule sends more power from the north to the south than the line can carry. You must cut the north-south flow by redispatch: reduce generation in the north and increase it by the same amount in the south. Pick the cheapest plan.</p>
+  <p class="callout"><b>What is real and what is assumed:</b> the hourly German wind series is real (SMARD, 12,961 hours). The two-zone grid, the share of wind sent north to south (20 %), the line limit (72 % of the scheduled flow) and all plant limits and prices are <b>stylised assumptions</b>. The problem has a provable optimum, so every plan can be graded.</p>
+  <noscript><p class="callout">This simulation needs JavaScript.</p></noscript>
+
+  <h2>1. The situation</h2>
+  <div class="callout">
+    <label for="hr">Hour: <b id="hrv"></b></label><br><input id="hr" type="range" min="0" value="100" style="width:100%">
+    <p id="sit" style="margin:12px 0 0"></p>
+  </div>
+
+  <h2>2. Your plan (MW)</h2>
+  <div class="tablewrap"><table id="opt"><thead><tr><th>Option</th><th>Side</th><th>Max MW</th><th>Price EUR/MW</th><th>Your MW</th></tr></thead><tbody></tbody></table></div>
+  <p><button id="sub" class="btn">Submit plan</button> <button id="naive" class="btn">Fill with the naive rule</button> <button id="clr" class="btn">Clear</button></p>
+  <p id="res"></p>
+  <p id="best" class="note"></p>
+
+  <h2>Scores over 500 real wind hours</h2>
+  <p class="note">Computed in Python (<code>simulation/evaluate.py</code>) with the exact linear-programme optimum.</p>
+  <div class="tablewrap"><table id="tbl"><thead><tr><th>Rule</th><th>Valid plans</th><th>Mean score</th><th>Mean cost (EUR per hour)</th></tr></thead><tbody></tbody></table></div>
+
+  <footer>Wind data: SMARD, Bundesnetzagentur | SMARD.de, CC BY 4.0. Everything else about the grid is a teaching assumption. Part of the Redispatch analysis project.</footer>
+</div>
+<script src="data.js"></script>
+<script>
+(function () {
+  var G = window.GSIM, SCALE = 0.20, SHARE = 0.72, $ = function (id) { return document.getElementById(id); };
+  var DOWN = [['North wind curtailment', null, 120], ['North lignite plant', 1500, 95], ['North gas plant', 900, 80]];
+  var UP = [['South gas peaker', 1400, 140], ['South hard-coal reserve', 1000, 110], ['South hydro/pumped storage', 600, 75]];
+  var flow, limit, excess, inputs = {};
+  var hrs = G.wind.length; $('hr').max = hrs - 1;
+  function stamp(i) { var d = new Date(new Date(G.start + 'Z').getTime() + i * 3600000); return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'; }
+  function cap(o) { return o[1] === null ? flow : o[1]; }
+  function load() {
+    var i = +$('hr').value; flow = G.wind[i] * SCALE; limit = flow * SHARE; excess = flow - limit;
+    $('hrv').textContent = stamp(i);
+    $('sit').textContent = 'German wind ' + G.wind[i].toLocaleString() + ' MW. Scheduled flow north to south ' + Math.round(flow).toLocaleString() + ' MW, the line carries ' + Math.round(limit).toLocaleString() + ' MW. You must redispatch at least ' + excess.toFixed(1) + ' MW, balanced between north and south.';
+    $('res').textContent = ''; $('best').textContent = '';
+    var tb = document.querySelector('#opt tbody'); tb.innerHTML = ''; inputs = {};
+    DOWN.concat(UP).forEach(function (o, k) {
+      var tr = document.createElement('tr'), side = k < DOWN.length ? 'reduce in the north' : 'increase in the south';
+      [o[0], side, Math.round(cap(o)), o[2]].forEach(function (v) { var td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      var td = document.createElement('td'), inp = document.createElement('input'); inp.type = 'number'; inp.min = 0; inp.max = Math.round(cap(o)); inp.step = 10; inp.value = 0; inp.style.width = '6em'; inp.setAttribute('aria-label', o[0] + ' MW'); td.appendChild(inp); tr.appendChild(td); tb.appendChild(tr); inputs[o[0]] = inp;
+    });
+  }
+  function plan() { var p = {}; Object.keys(inputs).forEach(function (k) { p[k] = +inputs[k].value || 0; }); return p; }
+  function fill(p) { Object.keys(inputs).forEach(function (k) { inputs[k].value = Math.round((p[k] || 0) * 10) / 10; }); }
+  function check(p) {
+    var errs = [], d = 0, u = 0, cost = 0;
+    DOWN.forEach(function (o) { var v = p[o[0]] || 0; d += v; cost += v * o[2]; if (v < 0 || v > cap(o) + 1e-6) errs.push(o[0] + ': ' + v + ' MW outside 0 to ' + Math.round(cap(o))); });
+    UP.forEach(function (o) { var v = p[o[0]] || 0; u += v; cost += v * o[2]; if (v < 0 || v > cap(o) + 1e-6) errs.push(o[0] + ': ' + v + ' MW outside 0 to ' + Math.round(cap(o))); });
+    if (Math.abs(d - u) > 1) errs.push('reduction (' + Math.round(d) + ' MW) and increase (' + Math.round(u) + ' MW) must balance');
+    if (d < excess - 1) errs.push('the flow is still ' + Math.round(excess - d) + ' MW over the limit');
+    return { valid: errs.length === 0, errors: errs, cost: Math.round(cost) };
+  }
+  function optimum() {  // cheapest first on each side, exactly `excess` MW: the linear-programme optimum for this problem
+    var p = {}, cost = 0;
+    [DOWN, UP].forEach(function (side) { var rem = excess; side.slice().sort(function (a, b) { return a[2] - b[2]; }).forEach(function (o) { var x = Math.min(rem, cap(o)); if (x > 0) { p[o[0]] = x; cost += x * o[2]; rem -= x; } }); });
+    return { plan: p, cost: Math.round(cost) };
+  }
+  function naive() {  // largest conventional plant first, same as simulation/grid_env.py
+    var p = {}, rem = excess; p['North lignite plant'] = Math.min(rem, 1500); rem -= p['North lignite plant'];
+    if (rem > 0) { p['North gas plant'] = Math.min(rem, 900); rem -= p['North gas plant']; } if (rem > 0) p['North wind curtailment'] = rem;
+    rem = excess; ['South gas peaker', 'South hard-coal reserve', 'South hydro/pumped storage'].forEach(function (k) { var o = UP.filter(function (x) { return x[0] === k; })[0], x = Math.min(rem, o[1]); if (x > 0) { p[k] = x; rem -= x; } });
+    return p;
+  }
+  $('hr').oninput = load; $('clr').onclick = function () { fill({}); $('res').textContent = ''; $('best').textContent = ''; };
+  $('naive').onclick = function () { fill(naive()); };
+  $('sub').onclick = function () {
+    var c = check(plan()), o = optimum();
+    if (!c.valid) { $('res').textContent = 'Plan not valid: ' + c.errors.join('; ') + '.'; $('best').textContent = ''; return; }
+    var score = c.cost > 0 ? Math.min(1, o.cost / c.cost) : 1;
+    $('res').textContent = 'Valid. Cost ' + c.cost.toLocaleString() + ' EUR, optimum ' + o.cost.toLocaleString() + ' EUR. Score ' + score.toFixed(3) + ' (1.0 = optimal).';
+    $('best').textContent = 'Optimal plan: ' + Object.keys(o.plan).map(function (k) { return k + ' ' + o.plan[k].toFixed(0) + ' MW'; }).join(', ') + '.';
+  };
+  var tb = document.querySelector('#tbl tbody'), P = G.results.policies;
+  Object.keys(P).forEach(function (k) { var v = P[k], tr = document.createElement('tr'); [k, v.valid_share, v.mean_score, v.mean_cost_EUR.toLocaleString()].forEach(function (c) { var td = document.createElement('td'); td.textContent = c; tr.appendChild(td); }); tb.appendChild(tr); });
+  window.__t = { load: load, optimum: optimum, naive: naive, check: check, plan: plan, fill: fill };
+  load();
+})();
+</script>
+</body>
+</html>

@@ -15,7 +15,7 @@ Who could use the answer: a regulator's analyst, an investment committee, an ene
 | Source | Content | Licence |
 |---|---|---|
 | SMARD, Bundesnetzagentur | monthly redispatch volume (GWh) and cost (million EUR), July 2022 to April 2026 (46 months); hourly generation by source | "Bundesnetzagentur / SMARD.de", CC BY 4.0 |
-| Netztransparenz (the four transmission operators) | 51,443 individual redispatch measures, January 2024 to April 2026: operator, direction, plant type, energy | check the terms at the source before reuse |
+| Netztransparenz (the four transmission operators) | 51,443 individual redispatch measures from 31 December 2023 to 8 September 2026 (longer than the monthly series): operator, direction, plant type, energy | check the terms at the source before reuse |
 
 Files: `data/raw/`. `src/fetch_smard_generation.py` downloads the generation file again.
 
@@ -33,7 +33,7 @@ Files: `data/raw/`. `src/fetch_smard_generation.py` downloads the generation fil
 - **The cost per MWh has really fallen:** median 128.5 EUR (2022) to 68.4 (2025). Year on year it changes by −11.6 percent (95 percent range −18.6 to −4.1). Theil-Sen slope −11.7 EUR per MWh per year (range −15.4 to −8.2), Kendall tau −0.53.
 - **The volume has not clearly changed:** year on year +8.6 percent (range −5.4 to +22.3), Kendall tau 0.01 (p = 0.93). The same for total cost: −0.8 percent (range −17.8 to +19.4). With 34 comparable months the data cannot distinguish flat from about ±20 percent.
 - **So the case for investment rests on the volume, which has not clearly fallen**, not on the cost, which has.
-- **TenneT DE ordered 47.5 percent** of the redispatched energy (27,091 GWh), Amprion 25.7, 50Hertz 13.9, TransnetBW 13.0 (2024 to 2026 measures).
+- **TenneT DE ordered 47.5 percent** of the redispatched energy (27,091 GWh), Amprion 25.7, 50Hertz 13.9, TransnetBW 13.0 (all measures up to 8 September 2026).
 - **Wind and redispatch volume move together** (13 months, correlation 0.75, bootstrap range 0.31 to 0.96): likely a real link, poorly pinned down.
 - Average monthly reductions rose from 1,199 GWh (first 24 months) to 1,309 (last 12); increases fell from 771 to 603.
 
