@@ -1,0 +1,51 @@
+table fact_operator_monthly
+	lineageTag: 55555555-5555-5555-5555-555555555599
+
+	measure 'Operator Energy (GWh)' = DIVIDE ( SUM ( fact_operator_monthly[energy_mwh] ), 1000 )
+		formatString: #,0.00
+		lineageTag: 55555555-5555-5555-5555-555555555501
+
+	measure 'Operator Share %' =
+				DIVIDE ( [Operator Energy (GWh)], CALCULATE ( [Operator Energy (GWh)], ALL ( fact_operator_monthly[operator] ) ) )
+		formatString: 0.0%
+		lineageTag: 55555555-5555-5555-5555-555555555502
+
+	column month
+		dataType: dateTime
+		formatString: yyyy-mm
+		lineageTag: 55555555-5555-5555-5555-555555555510
+		summarizeBy: none
+		sourceColumn: month
+
+	column operator
+		dataType: string
+		lineageTag: 55555555-5555-5555-5555-555555555511
+		summarizeBy: none
+		sourceColumn: operator
+
+	column direction
+		dataType: string
+		lineageTag: 55555555-5555-5555-5555-555555555512
+		summarizeBy: none
+		sourceColumn: direction
+
+	column energy_type
+		dataType: string
+		lineageTag: 55555555-5555-5555-5555-555555555513
+		summarizeBy: none
+		sourceColumn: energy_type
+
+	column energy_mwh
+		dataType: double
+		lineageTag: 55555555-5555-5555-5555-555555555514
+		summarizeBy: sum
+		sourceColumn: energy_mwh
+	partition fact_operator_monthly = m
+		mode: import
+		source =
+				let
+						Source = Csv.Document(File.Contents(DataPath & "fact_operator_monthly.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
+						Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+						Typed = Table.TransformColumnTypes(Promoted, {{"month", type date}, {"operator", type text}, {"direction", type text}, {"energy_type", type text}, {"energy_mwh", type number}}, "en-US")
+				in
+						Typed
