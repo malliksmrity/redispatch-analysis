@@ -1,0 +1,7 @@
+relationship rel_fact_monthly_month
+	fromColumn: fact_monthly.month
+	toColumn: dim_month.month
+
+relationship rel_fact_operator_month
+	fromColumn: fact_operator_monthly.month
+	toColumn: dim_month.month

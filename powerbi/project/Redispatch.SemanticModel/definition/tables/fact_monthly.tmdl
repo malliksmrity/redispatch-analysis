@@ -1,0 +1,90 @@
+table fact_monthly
+	lineageTag: 44444444-4444-4444-4444-444444444499
+
+	measure 'Total Cost (m EUR)' = SUM ( fact_monthly[cost_million_eur] )
+		formatString: #,0.00
+		lineageTag: 33333333-3333-3333-3333-333333333301
+
+	measure 'Total Volume (GWh)' = SUM ( fact_monthly[volume_gwh] )
+		formatString: #,0.00
+		lineageTag: 33333333-3333-3333-3333-333333333302
+
+	measure 'Cost per MWh (EUR)' = DIVIDE ( [Total Cost (m EUR)] * 1000000, [Total Volume (GWh)] * 1000 )
+		formatString: #,0.00
+		lineageTag: 33333333-3333-3333-3333-333333333303
+
+	measure 'Cost 12M Average (m EUR)' =
+				AVERAGEX (
+						DATESINPERIOD ( dim_month[month], MAX ( dim_month[month] ), -12, MONTH ),
+						CALCULATE ( SUM ( fact_monthly[cost_million_eur] ) )
+				)
+		formatString: #,0.00
+		lineageTag: 33333333-3333-3333-3333-333333333304
+
+	measure 'Peak Month Cost (m EUR)' = MAXX ( ALL ( dim_month ), CALCULATE ( SUM ( fact_monthly[cost_million_eur] ) ) )
+		formatString: #,0.00
+		lineageTag: 33333333-3333-3333-3333-333333333305
+
+	measure 'Latest Month Cost (m EUR)' = CALCULATE ( SUM ( fact_monthly[cost_million_eur] ), LASTDATE ( ALL ( dim_month[month] ) ) )
+		formatString: #,0.00
+		lineageTag: 33333333-3333-3333-3333-333333333306
+
+	measure 'Decline From Peak %' = 1 - DIVIDE ( [Latest Month Cost (m EUR)], [Peak Month Cost (m EUR)] )
+		formatString: 0.0%
+		lineageTag: 33333333-3333-3333-3333-333333333307
+
+	measure 'Reductions Share %' = DIVIDE ( SUM ( fact_monthly[reductions_gwh] ), SUM ( fact_monthly[reductions_gwh] ) + SUM ( fact_monthly[increases_gwh] ) )
+		formatString: 0.0%
+		lineageTag: 33333333-3333-3333-3333-333333333308
+	column month
+		dataType: dateTime
+		formatString: yyyy-mm
+		lineageTag: 44444444-4444-4444-4444-444444444400
+		summarizeBy: none
+		sourceColumn: month
+
+	column volume_gwh
+		dataType: double
+		lineageTag: 44444444-4444-4444-4444-444444444401
+		summarizeBy: sum
+		sourceColumn: volume_gwh
+
+	column cost_million_eur
+		dataType: double
+		lineageTag: 44444444-4444-4444-4444-444444444402
+		summarizeBy: sum
+		sourceColumn: cost_million_eur
+
+	column reductions_gwh
+		dataType: double
+		lineageTag: 44444444-4444-4444-4444-444444444403
+		summarizeBy: sum
+		sourceColumn: reductions_gwh
+
+	column increases_gwh
+		dataType: double
+		lineageTag: 44444444-4444-4444-4444-444444444404
+		summarizeBy: sum
+		sourceColumn: increases_gwh
+
+	column conventional_gwh
+		dataType: double
+		lineageTag: 44444444-4444-4444-4444-444444444405
+		summarizeBy: sum
+		sourceColumn: conventional_gwh
+
+	column renewable_gwh
+		dataType: double
+		lineageTag: 44444444-4444-4444-4444-444444444406
+		summarizeBy: sum
+		sourceColumn: renewable_gwh
+
+	partition fact_monthly = m
+		mode: import
+		source =
+				let
+						Source = Csv.Document(File.Contents(DataPath & "fact_monthly.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
+						Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+						Typed = Table.TransformColumnTypes(Promoted, {{"month", type date}, {"volume_gwh", type number}, {"cost_million_eur", type number}, {"reductions_gwh", type number}, {"increases_gwh", type number}, {"conventional_gwh", type number}, {"renewable_gwh", type number}}, "en-US")
+				in
+						Typed
