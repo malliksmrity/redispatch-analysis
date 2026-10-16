@@ -65,6 +65,8 @@ No machine-learning model: this is a descriptive and statistical analysis, chose
 
 ## 8. Deployment
 
+**Simulation environment (simulation/):** GridSimEnv resolves a north-south congestion in a real wind hour at minimum cost, graded against a linear-programme optimum. The wind series is real; the two-zone grid, line limit and prices are stylised assumptions. A naive largest-plant-first rule scores 0.71 over 500 hours. Live Gradio app, Space-ready, not yet deployed. n8n workflow in utomation/n8n/ (SMARD live feed tested, n8n itself untested).
+
 | What | How | Status |
 |---|---|---|
 | Static page | GitHub Pages, branch + folder `/docs` | needs enabling |
