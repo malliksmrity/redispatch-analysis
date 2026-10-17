@@ -60,7 +60,7 @@ No machine-learning model: this is a descriptive and statistical analysis, chose
 
 - Static project page with five charts and the trend table: `docs/index.html`.
 - A Hugging Face Space app to explore metric, years and operators: `space/`.
-- Power BI package: star-schema CSVs (`powerbi/data/`), DAX measures (`powerbi/measures.dax`), theme and a build guide. **The DAX is untested** because I could not run Power BI Desktop. Building the report yourself is the next step.
+- Power BI package: star-schema CSVs (`powerbi/data/`), DAX measures (`powerbi/measures.dax`), theme and a build guide. **Checked in Power BI Desktop (October 2026):** the project in `powerbi/project/` opens, the model and relationships load, and 8 of the 10 measures reproduce the values computed independently in pandas (`powerbi/expected_values.csv`); the two operator measures were not yet compared. There is a Card page only, no finished report layout yet.
 - Machine-readable results: `reports/results.json`.
 
 ## 8. Deployment
