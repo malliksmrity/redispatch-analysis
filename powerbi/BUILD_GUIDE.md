@@ -1,6 +1,6 @@
 # Build the Power BI report (about 60 to 90 minutes)
 
-Why this exists: the project page is a static Chart.js page. Power BI is what many German employers use for reporting, so this folder prepares a clean data model and measures. **I could not open Power BI Desktop while preparing this, so the DAX in `measures.dax` and these steps are untested. Building the report yourself is the point: you will be able to explain every number.**
+Why this exists: the project page is a static Chart.js page. Power BI is what many German employers use for reporting, so this folder prepares a clean data model and measures. **The project in `project/` was generated from files and then opened in Power BI Desktop (October 2026): the tables, relationships and 8 of the 10 measures matched the pandas values in `expected_values.csv` (the two operator measures were not compared yet). The report page has Cards only; build the visuals yourself so you can explain every number.**
 
 Tool: Power BI Desktop (free, Windows). Do not publish to the Power BI service with your university account without checking the rules.
 
