@@ -1,0 +1,47 @@
+table dim_month
+	lineageTag: 22222222-2222-2222-2222-222222222201
+	dataCategory: Time
+
+	column month
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm
+		lineageTag: 22222222-2222-2222-2222-222222222202
+		summarizeBy: none
+		sourceColumn: month
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: 22222222-2222-2222-2222-222222222203
+		summarizeBy: none
+		sourceColumn: year
+
+	column month_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 22222222-2222-2222-2222-222222222204
+		summarizeBy: none
+		sourceColumn: month_number
+
+	column month_name
+		dataType: string
+		lineageTag: 22222222-2222-2222-2222-222222222205
+		summarizeBy: none
+		sourceColumn: month_name
+		sortByColumn: month_number
+
+	column year_month
+		dataType: string
+		lineageTag: 22222222-2222-2222-2222-222222222206
+		summarizeBy: none
+		sourceColumn: year_month
+	partition dim_month = m
+		mode: import
+		source =
+				let
+						Source = Csv.Document(File.Contents(DataPath & "dim_month.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
+						Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+						Typed = Table.TransformColumnTypes(Promoted, {{"month", type date}, {"year", Int64.Type}, {"month_number", Int64.Type}, {"month_name", type text}, {"year_month", type text}}, "en-US")
+				in
+						Typed
