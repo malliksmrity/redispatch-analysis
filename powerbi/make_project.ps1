@@ -1,5 +1,5 @@
 # Writes the Power BI project (PBIP, text format) into powerbi/project. Run: powershell -File make_project.ps1
-# Untested in Power BI Desktop: written without access to the application.
+# Opened and refreshed in Power BI Desktop (Oct 2026): tables, relationships and measures load.
 $root = Join-Path $PSScriptRoot 'project'
 $data = (Join-Path $PSScriptRoot 'data') + '\'
 $sm = Join-Path $root 'Redispatch.SemanticModel'
