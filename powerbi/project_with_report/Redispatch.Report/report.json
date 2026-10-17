@@ -1,0 +1,83 @@
+{
+    "config":  "{\"version\":\"5.55\",\"themeCollection\":{\"baseTheme\":{\"name\":\"CY24SU10\"}}}",
+    "layoutOptimization":  0,
+    "resourcePackages":  [
+
+                         ],
+    "sections":  [
+                     {
+                         "config":  "{}",
+                         "displayName":  "Overview",
+                         "displayOption":  1,
+                         "filters":  "[]",
+                         "height":  440,
+                         "name":  "ReportSection1",
+                         "visualContainers":  [
+                                                  {
+                                                      "config":  "{\"name\":\"c1\",\"layouts\":[{\"id\":0,\"position\":{\"y\":20,\"height\":90,\"width\":230,\"z\":0,\"x\":20}}],\"singleVisual\":{\"visualType\":\"card\",\"projections\":{\"Values\":[{\"queryRef\":\"fact_monthly.Total Cost (m EUR)\"}]},\"prototypeQuery\":{\"From\":[{\"Name\":\"fact_monthly\",\"Entity\":\"fact_monthly\",\"Type\":0}],\"Select\":[{\"Name\":\"fact_monthly.Total Cost (m EUR)\",\"Measure\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_monthly\"}},\"Property\":\"Total Cost (m EUR)\"}}],\"Version\":2}}}",
+                                                      "filters":  "[]",
+                                                      "height":  90,
+                                                      "width":  230,
+                                                      "x":  20,
+                                                      "y":  20,
+                                                      "z":  0
+                                                  },
+                                                  {
+                                                      "config":  "{\"name\":\"c2\",\"layouts\":[{\"id\":0,\"position\":{\"y\":20,\"height\":90,\"width\":230,\"z\":0,\"x\":270}}],\"singleVisual\":{\"visualType\":\"card\",\"projections\":{\"Values\":[{\"queryRef\":\"fact_monthly.Total Volume (GWh)\"}]},\"prototypeQuery\":{\"From\":[{\"Name\":\"fact_monthly\",\"Entity\":\"fact_monthly\",\"Type\":0}],\"Select\":[{\"Name\":\"fact_monthly.Total Volume (GWh)\",\"Measure\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_monthly\"}},\"Property\":\"Total Volume (GWh)\"}}],\"Version\":2}}}",
+                                                      "filters":  "[]",
+                                                      "height":  90,
+                                                      "width":  230,
+                                                      "x":  270,
+                                                      "y":  20,
+                                                      "z":  0
+                                                  },
+                                                  {
+                                                      "config":  "{\"name\":\"c3\",\"layouts\":[{\"id\":0,\"position\":{\"y\":20,\"height\":90,\"width\":230,\"z\":0,\"x\":520}}],\"singleVisual\":{\"visualType\":\"card\",\"projections\":{\"Values\":[{\"queryRef\":\"fact_monthly.Cost per MWh (EUR)\"}]},\"prototypeQuery\":{\"From\":[{\"Name\":\"fact_monthly\",\"Entity\":\"fact_monthly\",\"Type\":0}],\"Select\":[{\"Name\":\"fact_monthly.Cost per MWh (EUR)\",\"Measure\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_monthly\"}},\"Property\":\"Cost per MWh (EUR)\"}}],\"Version\":2}}}",
+                                                      "filters":  "[]",
+                                                      "height":  90,
+                                                      "width":  230,
+                                                      "x":  520,
+                                                      "y":  20,
+                                                      "z":  0
+                                                  },
+                                                  {
+                                                      "config":  "{\"name\":\"c4\",\"layouts\":[{\"id\":0,\"position\":{\"y\":20,\"height\":90,\"width\":230,\"z\":0,\"x\":770}}],\"singleVisual\":{\"visualType\":\"card\",\"projections\":{\"Values\":[{\"queryRef\":\"fact_monthly.Decline From Peak %\"}]},\"prototypeQuery\":{\"From\":[{\"Name\":\"fact_monthly\",\"Entity\":\"fact_monthly\",\"Type\":0}],\"Select\":[{\"Name\":\"fact_monthly.Decline From Peak %\",\"Measure\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_monthly\"}},\"Property\":\"Decline From Peak %\"}}],\"Version\":2}}}",
+                                                      "filters":  "[]",
+                                                      "height":  90,
+                                                      "width":  230,
+                                                      "x":  770,
+                                                      "y":  20,
+                                                      "z":  0
+                                                  },
+                                                  {
+                                                      "config":  "{\"name\":\"c5\",\"layouts\":[{\"id\":0,\"position\":{\"y\":20,\"height\":90,\"width\":230,\"z\":0,\"x\":1020}}],\"singleVisual\":{\"visualType\":\"card\",\"projections\":{\"Values\":[{\"queryRef\":\"fact_operator_monthly.Operator Energy (GWh)\"}]},\"prototypeQuery\":{\"From\":[{\"Name\":\"fact_operator_monthly\",\"Entity\":\"fact_operator_monthly\",\"Type\":0}],\"Select\":[{\"Name\":\"fact_operator_monthly.Operator Energy (GWh)\",\"Measure\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_operator_monthly\"}},\"Property\":\"Operator Energy (GWh)\"}}],\"Version\":2}}}",
+                                                      "filters":  "[]",
+                                                      "height":  90,
+                                                      "width":  230,
+                                                      "x":  1020,
+                                                      "y":  20,
+                                                      "z":  0
+                                                  },
+                                                  {
+                                                      "config":  "{\"name\":\"l1\",\"layouts\":[{\"id\":0,\"position\":{\"y\":130,\"height\":290,\"width\":620,\"z\":0,\"x\":20}}],\"singleVisual\":{\"visualType\":\"lineChart\",\"projections\":{\"Category\":[{\"queryRef\":\"dim_month.year_month\",\"active\":true}],\"Y\":[{\"queryRef\":\"fact_monthly.Total Cost (m EUR)\"}]},\"prototypeQuery\":{\"From\":[{\"Name\":\"fact_monthly\",\"Entity\":\"fact_monthly\",\"Type\":0},{\"Name\":\"dim_month\",\"Entity\":\"dim_month\",\"Type\":0}],\"Select\":[{\"Column\":{\"Expression\":{\"SourceRef\":{\"Source\":\"dim_month\"}},\"Property\":\"year_month\"},\"Name\":\"dim_month.year_month\"},{\"Name\":\"fact_monthly.Total Cost (m EUR)\",\"Measure\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_monthly\"}},\"Property\":\"Total Cost (m EUR)\"}}],\"Version\":2}}}",
+                                                      "filters":  "[]",
+                                                      "height":  290,
+                                                      "width":  620,
+                                                      "x":  20,
+                                                      "y":  130,
+                                                      "z":  0
+                                                  },
+                                                  {
+                                                      "config":  "{\"name\":\"b1\",\"layouts\":[{\"id\":0,\"position\":{\"y\":130,\"height\":290,\"width\":600,\"z\":0,\"x\":660}}],\"singleVisual\":{\"visualType\":\"clusteredColumnChart\",\"projections\":{\"Category\":[{\"queryRef\":\"fact_operator_monthly.operator\",\"active\":true}],\"Y\":[{\"queryRef\":\"fact_operator_monthly.Operator Share %\"}]},\"prototypeQuery\":{\"From\":[{\"Name\":\"fact_operator_monthly\",\"Entity\":\"fact_operator_monthly\",\"Type\":0}],\"Select\":[{\"Column\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_operator_monthly\"}},\"Property\":\"operator\"},\"Name\":\"fact_operator_monthly.operator\"},{\"Name\":\"fact_operator_monthly.Operator Share %\",\"Measure\":{\"Expression\":{\"SourceRef\":{\"Source\":\"fact_operator_monthly\"}},\"Property\":\"Operator Share %\"}}],\"Version\":2}}}",
+                                                      "filters":  "[]",
+                                                      "height":  290,
+                                                      "width":  600,
+                                                      "x":  660,
+                                                      "y":  130,
+                                                      "z":  0
+                                                  }
+                                              ],
+                         "width":  1280
+                     }
+                 ]
+}
